@@ -352,13 +352,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 <a href="adicionar.php" class="nav-item active">
                     <i class="ph ph-plus-circle"></i><span>Adicionar M&uacute;sica</span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="todas.php" class="nav-item">
                     <i class="ph ph-music-notes"></i><span>Todas as M&uacute;sicas</span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="artistas.php" class="nav-item">
                     <i class="ph ph-microphone-stage"></i><span>Artistas</span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="albuns.php" class="nav-item">
                     <i class="ph ph-vinyl-record"></i><span>&Aacute;lbuns</span>
                 </a>
             </div>

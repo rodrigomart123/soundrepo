@@ -34,13 +34,13 @@ if(file_exists('db.php')) {
                 <a href="adicionar.php" class="nav-item">
                     <i class="ph ph-plus-circle"></i><span>Adicionar M&uacute;sica</span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="todas.php" class="nav-item">
                     <i class="ph ph-music-notes"></i><span>Todas as M&uacute;sicas</span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="artistas.php" class="nav-item">
                     <i class="ph ph-microphone-stage"></i><span>Artistas</span>
                 </a>
-                <a href="#" class="nav-item">
+                <a href="albuns.php" class="nav-item">
                     <i class="ph ph-vinyl-record"></i><span>&Aacute;lbuns</span>
                 </a>
             </div>
@@ -48,8 +48,8 @@ if(file_exists('db.php')) {
     </nav>
 
     <!-- MAIN VIEW -->
-    <main class="main-view" id="mainContent">
-        
+    <main class="main-view fade-in" id="mainContent">
+
         <!-- Column Browser -->
         <div class="column-browser">
             <div class="col-filter">
@@ -1219,13 +1219,34 @@ if(file_exists('db.php')) {
     // INIT DASHBOARD (SPA-safe re-init)
     // ========================
     function initDashboardEvents() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
         activeFilters.genre = '';
-        activeFilters.artist = '';
-        activeFilters.album = '';
+        activeFilters.artist = urlParams.get('artist') || '';
+        activeFilters.album = urlParams.get('album') || '';
+        
+        // Auto-select filter rows based on query
+        if (activeFilters.artist) {
+            const row = document.querySelector(`.filter-row[data-filter="artist"][data-value="${activeFilters.artist}"]`);
+            if (row) {
+                row.classList.add('selected');
+                // Scroll to view
+                row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+        if (activeFilters.album) {
+            const row = document.querySelector(`.filter-row[data-filter="album"][data-value="${activeFilters.album}"]`);
+            if (row) {
+                row.classList.add('selected');
+                row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+        
         const sp = document.getElementById('searchPersistent');
         if (sp) sp.value = currentSearchQuery;
         updateSearchClearBtn();
-        if (currentSearchQuery) applyAllFilters();
+        updateFilterColumns();
+        applyAllFilters();
     }
 
     // ========================
