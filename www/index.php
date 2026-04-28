@@ -841,6 +841,14 @@ if(file_exists('db.php')) {
 
     function closeSearch() {
         searchOverlay.style.display = 'none';
+        searchInput.value = '';
+        
+        // Clear persistent search bar when closing search overlay
+        currentSearchQuery = '';
+        const sp = document.getElementById('searchPersistent');
+        if (sp) sp.value = '';
+        updateSearchClearBtn();
+        applyAllFilters();
     }
 
     function clearSearch() {
@@ -947,18 +955,16 @@ if(file_exists('db.php')) {
                     ? '' 
                     : `<i class="ph ph-music-note"></i>`;
                 
-                html += `
-                    <div class="search-card" data-track-id="${item.id}" data-track-src="${escapeAttr(item.src)}" data-track-title="${escapeAttr(item.title)}" data-track-artist="${escapeAttr(item.artist)}" data-track-album="${escapeAttr(item.album)}" data-track-cover="${escapeAttr(item.cover)}">
-                        <div class="search-card-art" style="${coverStyle}">
-                            ${coverContent}
-                        </div>
-                        <div class="search-card-info">
-                            <div class="search-card-title">${escapeHtml(item.title)}</div>
-                            <div class="search-card-subtitle">${escapeHtml(item.artist)} • ${escapeHtml(item.album)}</div>
-                        </div>
-                        ${item.badge ? `<div class="search-card-badge">${item.badge}</div>` : ''}
-                    </div>
-                `;
+                html += `<div class="search-card" data-track-id="${item.id}" data-track-src="${escapeAttr(item.src)}" data-track-title="${escapeAttr(item.title)}" data-track-artist="${escapeAttr(item.artist)}" data-track-album="${escapeAttr(item.album)}" data-track-cover="${escapeAttr(item.cover)}">`;
+                html += `<div class="search-card-art" style="${coverStyle}">${coverContent}</div>`;
+                html += `<div class="search-card-info">`;
+                html += `<div class="search-card-title">${escapeHtml(item.title)}</div>`;
+                html += `<div class="search-card-subtitle">${escapeHtml(item.artist)} • ${escapeHtml(item.album)}</div>`;
+                html += `</div>`;
+                if (item.badge) {
+                    html += `<div class="search-card-badge">${item.badge}</div>`;
+                }
+                html += `</div>`;
             });
             
             html += `</div>`;
@@ -973,6 +979,14 @@ if(file_exists('db.php')) {
             loadSearchSuggestions();
             return;
         }
+        
+        // Show loading state
+        searchResults.innerHTML = `
+            <div class="search-empty">
+                <i class="ph ph-spinner"></i>
+                <p>A pesquisar...</p>
+            </div>
+        `;
         
         fetch(`api.php?action=search&q=${encodeURIComponent(query)}&limit=20`)
             .then(r => r.json())
@@ -1069,7 +1083,7 @@ if(file_exists('db.php')) {
             clearTimeout(searchDebounceTimer);
             searchDebounceTimer = setTimeout(() => {
                 performSearch(query);
-            }, 300);
+            }, 400);
             
             // Update persistent search bar
             currentSearchQuery = query.toLowerCase();
