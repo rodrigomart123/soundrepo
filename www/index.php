@@ -722,6 +722,12 @@ if(file_exists('db.php')) {
                 this.updateNav(url);
                 this.restorePlayingState();
                 loadTrackDurations();
+                
+                // Reset bulk actions on navigation
+                if (typeof clearSelection === 'function') {
+                    clearSelection();
+                }
+
                 if (!url.includes('adicionar')) {
                     initDashboardEvents();
                 }
