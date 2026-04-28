@@ -1041,8 +1041,9 @@ if(file_exists('db.php')) {
                 selectedTracks.add(id);
                 r.classList.add('selected');
             }
+            lastSelectedIndex = currentIndex;
         } else if (e.ctrlKey || e.metaKey) {
-            // Ctrl-click: toggle individual
+            // Ctrl-click: toggle individual selection
             e.preventDefault();
             if (selectedTracks.has(trackId)) {
                 selectedTracks.delete(trackId);
@@ -1051,21 +1052,22 @@ if(file_exists('db.php')) {
                 selectedTracks.add(trackId);
                 row.classList.add('selected');
             }
+            lastSelectedIndex = currentIndex;
         } else {
-            // Normal click: play track (double-click) or select single
-            if (e.detail === 2) {
-                // Double-click: play
-                playTrack(row);
-                return;
-            }
-            // Single click: clear selection and select this one
+            // Normal click: play track and clear selection
+            playTrack(row);
             clearSelection();
-            selectedTracks.add(trackId);
-            row.classList.add('selected');
+            lastSelectedIndex = -1;
         }
         
-        lastSelectedIndex = currentIndex;
         updateBulkActions();
+    });
+
+    // ESC key to cancel selection
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && selectedTracks.size > 0) {
+            clearSelection();
+        }
     });
 
     function updateBulkActions() {
@@ -1081,6 +1083,7 @@ if(file_exists('db.php')) {
 
     function clearSelection() {
         selectedTracks.clear();
+        lastSelectedIndex = -1;
         getAllTracks().forEach(row => {
             row.classList.remove('selected');
         });
