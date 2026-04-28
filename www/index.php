@@ -10,6 +10,7 @@ if(file_exists('db.php')) {
     <title>SoundRepo</title>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/search-overlay.css">
 </head>
 <body>
 
