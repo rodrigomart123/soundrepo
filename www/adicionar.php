@@ -266,20 +266,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                     $cleaned = preg_replace('/\s*[\(\[][^\)\]]*[\)\]]\s*/', ' ', $cleaned);
                     $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
 
-                    // ALWAYS try to parse "Artist - Title" pattern
-                    $parts = explode(' - ', $cleaned);
+                    // ALWAYS try to parse Artist and Title using multiple possible separators
+                    // Supports: "Artist - Title", "Artist-Title", "Artist – Title", "Artist — Title"
+                    $parts = preg_split('/\s*[\-\–\—]\s*/', $cleaned, 2);
+                    
                     if (count($parts) >= 2) {
                         $trackArtist = trim($parts[0]);
-                        $trackTitle = trim(implode(' - ', array_slice($parts, 1)));
+                        $trackTitle = trim($parts[1]);
                     } else {
-                        // Try "Artist_-_Title" or "Artist–Title" (en-dash)
-                        $altParts = preg_split('/\s*[–—]\s*|\s*_-_\s*/', $cleaned, 2);
-                        if (count($altParts) >= 2) {
-                            $trackArtist = trim($altParts[0]);
-                            $trackTitle = trim($altParts[1]);
-                        } else {
-                            $trackTitle = $cleaned;
-                        }
+                        $trackTitle = $cleaned;
                     }
 
                     if ($detectMeta) {
@@ -498,14 +493,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                     </div>
 
                     <div class="bulk-form">
-                        <div id="bulkDropZone" class="drop-zone">
-                            <i class="ph ph-cloud-arrow-up"></i>
-                            <h4>Largar pasta ou ficheiros aqui</h4>
-                            <p>Ou clica para selecionar do teu computador</p>
-                            <div id="bulkFileList" class="file-list"></div>
-                        </div>
-
-                        <div class="input-group" style="display: none;">
+                        <div class="input-group">
                             <label>Selecionar Pasta</label>
                             <input type="file" name="folderUpload[]" id="folderInput" webkitdirectory directory multiple>
                             <span class="input-hint"><i class="ph ph-info"></i> Clica para selecionar uma pasta com ficheiros de &aacute;udio</span>
@@ -855,71 +843,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                         var isHidden = manualPathGroup.style.display === 'none';
                         manualPathGroup.style.display = isHidden ? '' : 'none';
                         btnShowManualPath.querySelector('i').className = isHidden ? 'ph ph-eye-slash' : 'ph ph-keyboard';
-                    }
-                });
-            }
-
-            // === DRAG AND DROP ===
-            var dropZone = document.getElementById('bulkDropZone');
-            var fileList = document.getElementById('bulkFileList');
-
-            if (dropZone && folderInput) {
-                dropZone.addEventListener('click', function() {
-                    folderInput.click();
-                });
-
-                dropZone.addEventListener('dragover', function(e) {
-                    e.preventDefault();
-                    dropZone.classList.add('drag-over');
-                });
-
-                dropZone.addEventListener('dragleave', function() {
-                    dropZone.classList.remove('drag-over');
-                });
-
-                dropZone.addEventListener('drop', function(e) {
-                    e.preventDefault();
-                    dropZone.classList.remove('drag-over');
-                    
-                    var files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        // For simple 'drop' of multiple files, we can't easily populate webkitdirectory input
-                        // so we warn the user or try to handle as normal multiple files
-                        folderInput.files = files;
-                        
-                        // Trigger the same change logic as folderInput
-                        var event = new Event('change');
-                        folderInput.dispatchEvent(event);
-                    }
-                });
-
-                // Update UI when folderInput changes
-                folderInput.addEventListener('change', function() {
-                    var files = folderInput.files;
-                    if (files.length > 0) {
-                        dropZone.querySelector('h4').textContent = files.length + ' ficheiros selecionados';
-                        dropZone.querySelector('p').textContent = 'Clica para alterar a seleção';
-                        
-                        if (fileList) {
-                            fileList.style.display = 'block';
-                            fileList.innerHTML = '';
-                            var audioExts = ['mp3','wav','ogg','flac','m4a','aac','wma'];
-                            var count = 0;
-                            for (var i = 0; i < Math.min(files.length, 5); i++) {
-                                var ext = files[i].name.split('.').pop().toLowerCase();
-                                var icon = audioExts.indexOf(ext) !== -1 ? 'ph-music-note' : 'ph-file';
-                                var item = document.createElement('div');
-                                item.className = 'file-item';
-                                item.innerHTML = '<i class="ph ' + icon + '"></i> ' + files[i].name;
-                                fileList.appendChild(item);
-                            }
-                            if (files.length > 5) {
-                                var more = document.createElement('div');
-                                more.className = 'file-item';
-                                more.textContent = '... e mais ' + (files.length - 5) + ' ficheiros';
-                                fileList.appendChild(more);
-                            }
-                        }
                     }
                 });
             }

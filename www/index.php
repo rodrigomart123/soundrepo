@@ -323,32 +323,40 @@ if(file_exists('db.php')) {
     }
 
     // === PLAY TRACK ===
+    let _playRequest = 0;
     function playTrack(el) {
-        const src = el.dataset.src;
-        const title = el.dataset.title;
-        const artist = el.dataset.artist;
-        const album = el.dataset.album;
-        const cover = el.dataset.cover;
-
-        // Check if browser supports the audio format
-        const ext = src.split('.').pop().toLowerCase();
-        const canPlay = audio.canPlayType('audio/' + ext);
+        if (!el || !el.dataset.src) return;
         
-        if (!canPlay && ext === 'flac') {
-            // Try alternative MIME types for FLAC
-            const canPlayFlac = audio.canPlayType('audio/flac') || audio.canPlayType('audio/x-flac');
-            if (!canPlayFlac) {
-                showToast('Formato FLAC não suportado neste navegador. Tenta converter para MP3.');
-                return;
-            }
+        const src = el.dataset.src;
+        const title = el.dataset.title || 'SoundRepo';
+        const artist = el.dataset.artist || 'Desconhecido';
+        const album = el.dataset.album || 'Desconhecido';
+        const cover = el.dataset.cover || '';
+        const requestId = ++_playRequest;
+
+        // If clicking the same track that is already loaded, just toggle play
+        // We use an absolute URL check to be safe
+        const absoluteSrc = new URL(src, window.location.href).href;
+        if (audio.src === absoluteSrc && playingTrackId == el.dataset.id) {
+            togglePlay();
+            return;
         }
 
+        audio.pause();
         audio.src = src;
-        audio.load(); // Force reload
-        audio.play().catch((err) => {
-            console.error('Playback error:', err);
-            showToast('Erro ao reproduzir: ' + title);
-        });
+        audio.load();
+        
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+                // Only show error if this is still the most recent request
+                if (requestId === _playRequest && err.name !== 'AbortError') {
+                    console.error('Playback error:', err, 'Source:', src);
+                    showToast('Erro ao reproduzir: ' + title);
+                }
+            });
+        }
+        
         currentTrackEl = el;
         playingTrackId = el.dataset.id;
 
@@ -1369,7 +1377,13 @@ if(file_exists('db.php')) {
     function showQueueView() {
         queueViewActive = true;
         const container = document.querySelector('.track-list-container');
-        if (!container) return;
+        if (!container) {
+            // If container doesn't exist (e.g. on "Adicionar" page), redirect to home first
+            SPA.navigate('index.php').then(() => {
+                setTimeout(showQueueView, 100);
+            });
+            return;
+        }
 
         // Save original HTML only on first open
         if (!savedTrackListHTML) {
@@ -1393,8 +1407,11 @@ if(file_exists('db.php')) {
         html += '</tr></thead><tbody>';
 
         playQueue.forEach((item, i) => {
-            html += '<tr class="track-row queue-row" data-id="' + item.id + '" data-src="' + item.src + '" data-title="' + escapeAttr(item.title) + '" data-artist="' + escapeAttr(item.artist) + '" data-album="' + escapeAttr(item.album) + '" data-cover="' + escapeAttr(item.cover) + '" onclick="playTrack(this)">';
-            html += '<td style="text-align:center;"><span class="track-num">' + (i + 1) + '</span><i class="ph-fill ph-play play-icon"></i></td>';
+            html += '<tr class="track-row queue-row" data-id="' + item.id + '" data-src="' + escapeAttr(item.src) + '" data-title="' + escapeAttr(item.title) + '" data-artist="' + escapeAttr(item.artist) + '" data-album="' + escapeAttr(item.album) + '" data-cover="' + escapeAttr(item.cover) + '">';
+            html += '<td style="text-align:center; position:relative;">';
+            html += '<span class="track-num">' + (i + 1) + '</span>';
+            html += '<i class="ph-fill ph-play play-icon"></i>';
+            html += '</td>';
             html += '<td><span class="track-title">' + escapeHtml(item.title) + '</span></td>';
             html += '<td>' + escapeHtml(item.artist) + '</td>';
             html += '<td>' + escapeHtml(item.album) + '</td>';
