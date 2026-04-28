@@ -14,7 +14,6 @@ if(file_exists('db.php')) {
 </head>
 <body>
 
-    <!-- SIDEBAR -->
     <nav class="sidebar">
         <div class="sidebar-top">
             <div class="nav-section">
@@ -47,10 +46,7 @@ if(file_exists('db.php')) {
         </div>
     </nav>
 
-    <!-- MAIN VIEW -->
     <main class="main-view fade-in" id="mainContent">
-
-        <!-- Column Browser -->
         <div class="column-browser">
             <div class="col-filter">
                 <div class="col-header">G&eacute;nero</div>
@@ -107,7 +103,6 @@ if(file_exists('db.php')) {
             </div>
         </div>
 
-        <!-- Persistent Search Bar -->
         <div class="search-bar-persistent" id="searchBarPersistent">
             <i class="ph ph-magnifying-glass search-persistent-icon"></i>
             <input type="text" id="searchPersistent" class="search-persistent-input" placeholder="Filtrar músicas...">
@@ -116,12 +111,10 @@ if(file_exists('db.php')) {
             </button>
         </div>
 
-        <!-- Track List -->
         <div class="track-list-container">
             <?php
             $hasMusics = false;
             if(isset($pdo)) {
-                // ATENÇÃO: Adicionei 'a.CoverPath' na query SQL abaixo
                 $sql = "SELECT m.MusicId, m.Title, m.FilePath, m.Genre, a.Title as AlbumName, a.CoverPath, art.Name as ArtistName
                         FROM Musics m
                         JOIN Albums a ON m.AlbumId = a.AlbumId
@@ -160,7 +153,6 @@ if(file_exists('db.php')) {
                         $artista = htmlspecialchars($row['ArtistName'], ENT_QUOTES);
                         $album = htmlspecialchars($row['AlbumName'], ENT_QUOTES);
                         
-                        // Processar capa
                         $cover = !empty($row['CoverPath']) ? str_replace('\\', '/', $row['CoverPath']) : '';
                         $genero = htmlspecialchars($row['Genre'] ?? '', ENT_QUOTES);
                         
@@ -198,7 +190,6 @@ if(file_exists('db.php')) {
         </div>
     </main>
 
-    <!-- RIGHT PANEL -->
     <aside class="right-panel" id="rightPanel">
         <div class="right-panel-header">
             <span>A Tocar</span>
@@ -216,9 +207,7 @@ if(file_exists('db.php')) {
         </div>
     </aside>
 
-    <!-- PLAYER BAR -->
     <footer class="player-bar">
-        <!-- Left: Track Info -->
         <div class="player-track-info">
             <div class="player-mini-art" id="footerArt">
                 <i class="ph ph-music-note"></i>
@@ -229,7 +218,6 @@ if(file_exists('db.php')) {
             </div>
         </div>
 
-        <!-- Center: Controls -->
         <div class="controls-center">
             <div class="buttons-row">
                 <button class="btn-control" id="btnShuffle" onclick="toggleShuffle()" title="Aleat&oacute;rio">
@@ -255,7 +243,6 @@ if(file_exists('db.php')) {
             </div>
         </div>
 
-        <!-- Right: Volume -->
         <div class="volume-controls">
             <i class="ph ph-speaker-high" id="volIcon" onclick="toggleMute()"></i>
             <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
@@ -264,7 +251,6 @@ if(file_exists('db.php')) {
 
     <audio id="audioPlayer" preload="metadata"></audio>
 
-    <!-- SEARCH OVERLAY -->
     <div class="search-overlay" id="searchOverlay" style="display:none;">
         <div class="search-container">
             <div class="search-bar-container">
@@ -273,20 +259,16 @@ if(file_exists('db.php')) {
                 <button class="search-bar-close" id="searchClose"><i class="ph ph-x"></i></button>
             </div>
             
-            <div class="search-results" id="searchResults">
-                <!-- Results will be injected here -->
-            </div>
+            <div class="search-results" id="searchResults"></div>
         </div>
     </div>
 
-    <!-- CONTEXT MENU -->
     <div class="context-menu" id="contextMenu" style="display:none;">
         <div class="context-menu-item" id="ctxAddQueue"><i class="ph ph-queue"></i> Adicionar à Fila</div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item ctx-danger" id="ctxDelete"><i class="ph ph-trash"></i> Apagar Música</div>
     </div>
 
-    <!-- BULK ACTIONS BAR -->
     <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
         <div class="bulk-actions-info">
             <span id="bulkSelectedCount">0</span> música(s) selecionada(s)
@@ -305,9 +287,6 @@ if(file_exists('db.php')) {
     </div>
 
     <script>
-    // ========================
-    // SOUNDREPO PLAYER ENGINE
-    // ========================
     const audio = document.getElementById('audioPlayer');
     const seekSlider = document.getElementById('seekSlider');
     const volSlider = document.getElementById('volumeSlider');
@@ -318,18 +297,16 @@ if(file_exists('db.php')) {
 
     let isDragging = false;
     let shuffleOn = false;
-    let repeatMode = 0; // 0=off, 1=all, 2=one
+    let repeatMode = 0;
     let currentTrackEl = null;
     let playingTrackId = null;
-    let selectedTracks = new Set(); // Track selection
-    let lastSelectedIndex = -1; // For shift-click selection
+    let selectedTracks = new Set();
+    let lastSelectedIndex = -1;
 
-    // === TRACK LIST ===
     function getAllTracks() {
         return Array.from(document.querySelectorAll('.track-row'));
     }
 
-    // === PLAY TRACK ===
     let _playRequest = 0;
     function playTrack(el) {
         if (!el || !el.dataset.src) return;
@@ -341,8 +318,6 @@ if(file_exists('db.php')) {
         const cover = el.dataset.cover || '';
         const requestId = ++_playRequest;
 
-        // If clicking the same track that is already loaded, just toggle play
-        // We use an absolute URL check to be safe
         const absoluteSrc = new URL(src, window.location.href).href;
         if (audio.src === absoluteSrc && playingTrackId == el.dataset.id) {
             togglePlay();
@@ -356,7 +331,6 @@ if(file_exists('db.php')) {
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.catch((err) => {
-                // Only show error if this is still the most recent request
                 if (requestId === _playRequest && err.name !== 'AbortError') {
                     console.error('Playback error:', err, 'Source:', src);
                     showToast('Erro ao reproduzir: ' + title);
@@ -367,16 +341,13 @@ if(file_exists('db.php')) {
         currentTrackEl = el;
         playingTrackId = el.dataset.id;
 
-        // Update Text UI
         document.getElementById('npTitle').textContent = title;
         document.getElementById('npArtist').textContent = artist;
         document.getElementById('npAlbum').textContent = album;
         document.getElementById('footerTitle').textContent = title;
         document.getElementById('footerArtist').textContent = artist;
 
-        // === LOGICA DA CAPA (ATUALIZADA) ===
         if (cover && cover !== '') {
-            // Se tiver capa na base de dados
             npArt.style.backgroundImage = `url('${cover}')`;
             npArt.style.backgroundSize = 'cover';
             npArt.style.backgroundPosition = 'center';
@@ -384,14 +355,12 @@ if(file_exists('db.php')) {
             npArt.querySelector('.art-icon').style.display = 'none';
             npArtInitial.style.display = 'none';
             
-            // Footer Art
             footerArt.style.backgroundImage = `url('${cover}')`;
             footerArt.style.backgroundSize = 'cover';
             footerArt.style.backgroundPosition = 'center';
             footerArt.innerHTML = '';
             footerArt.classList.add('has-track');
         } else {
-            // Se NÃO tiver capa (Fallback para cor + inicial)
             npArt.style.backgroundImage = 'none';
             const initial = artist.charAt(0).toUpperCase();
             npArtInitial.textContent = initial;
@@ -399,14 +368,12 @@ if(file_exists('db.php')) {
             npArt.querySelector('.art-icon').style.display = 'none';
             npArt.style.background = getArtColor(artist);
             
-            // Footer Art
             footerArt.style.backgroundImage = 'none';
             footerArt.innerHTML = '<span>' + initial + '</span>';
-            footerArt.style.background = getArtColor(artist); // Opcional: meter cor também no footer
+            footerArt.style.background = getArtColor(artist);
             footerArt.classList.add('has-track');
         }
 
-        // Highlight row
         getAllTracks().forEach(r => r.classList.remove('playing-row'));
         el.classList.add('playing-row');
 
@@ -434,7 +401,6 @@ if(file_exists('db.php')) {
         }
     }
 
-    // === NEXT / PREV ===
     function nextTrack() {
         const tracks = getAllTracks();
         if (!tracks.length) return;
@@ -470,7 +436,6 @@ if(file_exists('db.php')) {
         playTrack(tracks[idx]);
     }
 
-    // === SHUFFLE / REPEAT ===
     function toggleShuffle() {
         shuffleOn = !shuffleOn;
         document.getElementById('btnShuffle').classList.toggle('active', shuffleOn);
@@ -484,22 +449,18 @@ if(file_exists('db.php')) {
         icon.className = repeatMode === 2 ? 'ph ph-repeat-once' : 'ph ph-repeat';
     }
 
-    // === TRACK END (WITH QUEUE SUPPORT) ===
     audio.addEventListener('ended', () => {
         if (repeatMode === 2) {
             audio.currentTime = 0;
             audio.play().catch(() => {});
         } else if (playQueue.length > 0) {
-            // Play next from queue
             const next = playQueue.shift();
             renderQueueBadge();
-            // If queue view is open, refresh it
             if (queueViewActive) showQueueView();
             const row = document.querySelector('.track-row[data-id="' + next.id + '"]');
             if (row) {
                 playTrack(row);
             } else {
-                // Track not in current DOM, play directly
                 audio.src = next.src;
                 audio.play().catch(() => {});
                 document.getElementById('npTitle').textContent = next.title;
@@ -522,17 +483,14 @@ if(file_exists('db.php')) {
         }
     });
 
-    // === SLIDER FILL (COLOR TRACKER) ===
     function updateSliderFill(slider) {
         const min = parseFloat(slider.min) || 0;
         const max = parseFloat(slider.max) || 100;
         const val = parseFloat(slider.value);
         const pct = ((val - min) / (max - min)) * 100;
-        // Pinta rosa à esquerda e cinza à direita
         slider.style.background = 'linear-gradient(to right, var(--accent-bright) ' + pct + '%, #2a2a2a ' + pct + '%)';
     }
 
-    // === SEEK ===
     audio.addEventListener('timeupdate', () => {
         if (!isDragging && audio.duration) {
             const pct = (audio.currentTime / audio.duration) * 100;
@@ -566,7 +524,6 @@ if(file_exists('db.php')) {
         isDragging = false;
     });
 
-    // === VOLUME ===
     volSlider.addEventListener('input', () => {
         audio.volume = volSlider.value;
         updateSliderFill(volSlider);
@@ -593,7 +550,6 @@ if(file_exists('db.php')) {
         else icon.className = 'ph ph-speaker-high';
     }
 
-    // === HELPERS ===
     function formatTime(s) {
         if (!s || isNaN(s)) return '0:00';
         const m = Math.floor(s / 60);
@@ -616,7 +572,6 @@ if(file_exists('db.php')) {
         return colors[Math.abs(hash) % colors.length];
     }
 
-        // === LOAD TRACK DURATIONS ===
     function loadTrackDurations() {
         document.querySelectorAll('.track-row').forEach(row => {
             const src = row.dataset.src;
@@ -630,16 +585,13 @@ if(file_exists('db.php')) {
                 if (tempAudio.duration && !isNaN(tempAudio.duration) && isFinite(tempAudio.duration)) {
                     durationCell.textContent = formatTime(tempAudio.duration);
                 }
-                tempAudio.src = ''; // release resource
+                tempAudio.src = '';
             });
-            tempAudio.addEventListener('error', () => {
-                // keep --:-- if file can't be loaded
-            });
+            tempAudio.addEventListener('error', () => {});
             tempAudio.src = src;
         });
     }
 
-    // === KEYBOARD SHORTCUTS ===
     document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         switch(e.code) {
@@ -675,18 +627,13 @@ if(file_exists('db.php')) {
         }
     });
 
-    // Init sliders
     updateSliderFill(seekSlider);
     updateSliderFill(volSlider);
 
-    // ========================
-    // SPA ROUTER
-    // ========================
     const SPA = {
         mainEl: document.getElementById('mainContent'),
 
         init() {
-            // Intercept all internal link clicks
             document.addEventListener('click', (e) => {
                 const link = e.target.closest('a[href]');
                 if (!link) return;
@@ -696,7 +643,6 @@ if(file_exists('db.php')) {
                 this.navigate(href);
             });
 
-            // Intercept form submissions inside main content
             document.addEventListener('submit', (e) => {
                 const form = e.target;
                 if (!form || !this.mainEl.contains(form)) return;
@@ -704,13 +650,11 @@ if(file_exists('db.php')) {
                 this.submitForm(form);
             });
 
-            // Browser back/forward
             window.addEventListener('popstate', (e) => {
                 const url = (e.state && e.state.url) ? e.state.url : 'index.php';
                 this.loadPage(url, false);
             });
 
-            // Save initial state
             history.replaceState({ url: 'index.php' }, '', 'index.php');
         },
 
@@ -821,9 +765,6 @@ if(file_exists('db.php')) {
     SPA.init();
     loadTrackDurations();
 
-    // ========================
-    // SEARCH FEATURE (Advanced)
-    // ========================
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
     const searchResults = document.getElementById('searchResults');
@@ -844,7 +785,6 @@ if(file_exists('db.php')) {
         searchInput.value = '';
         searchResults.innerHTML = '';
         
-        // Clear persistent search bar when closing search overlay
         currentSearchQuery = '';
         const sp = document.getElementById('searchPersistent');
         if (sp) sp.value = '';
@@ -866,11 +806,9 @@ if(file_exists('db.php')) {
         if (btn) btn.style.display = currentSearchQuery ? '' : 'none';
     }
 
-    // Load suggestions when search opens (no query)
     function loadSearchSuggestions() {
         const suggestions = [];
-        
-        // 1. Currently playing track
+
         if (currentTrackEl) {
             suggestions.push({
                 title: 'A Tocar Agora',
@@ -886,7 +824,6 @@ if(file_exists('db.php')) {
             });
         }
         
-        // 2. Recent tracks from play queue
         if (playQueue.length > 0) {
             const recentTracks = playQueue.slice(0, 5).map(item => ({
                 id: item.id,
@@ -903,7 +840,6 @@ if(file_exists('db.php')) {
             });
         }
         
-        // 3. Recent tracks from library
         fetch('api.php?action=search&limit=8')
             .then(r => r.json())
             .then(data => {
@@ -929,7 +865,6 @@ if(file_exists('db.php')) {
             });
     }
 
-    // Render suggestions or search results
     function renderSearchSuggestions(sections) {
         if (!searchResults) return;
         
@@ -974,14 +909,12 @@ if(file_exists('db.php')) {
         searchResults.innerHTML = html;
     }
 
-    // Perform search via API
     function performSearch(query) {
         if (!query || query.length < 1) {
             loadSearchSuggestions();
             return;
         }
         
-        // Show loading state
         searchResults.innerHTML = `
             <div class="search-empty">
                 <i class="ph ph-spinner"></i>
@@ -1028,7 +961,6 @@ if(file_exists('db.php')) {
             });
     }
 
-    // Click handler for search cards
     searchOverlay.addEventListener('click', (e) => {
         const card = e.target.closest('.search-card');
         if (card) {
@@ -1041,12 +973,10 @@ if(file_exists('db.php')) {
                 cover: card.dataset.trackCover
             };
             
-            // Find the actual track element in the DOM or create a virtual one
             const existingTrack = document.querySelector(`.track-row[data-id="${trackData.id}"]`);
             if (existingTrack) {
                 playTrack(existingTrack);
             } else {
-                // Create virtual track element for playback
                 const virtualTrack = document.createElement('div');
                 virtualTrack.dataset.id = trackData.id;
                 virtualTrack.dataset.src = trackData.src;
@@ -1080,7 +1010,6 @@ if(file_exists('db.php')) {
         searchInput.addEventListener('input', () => {
             const query = searchInput.value.trim();
             
-            // Debounce search
             clearTimeout(searchDebounceTimer);
             searchDebounceTimer = setTimeout(() => {
                 performSearch(query);
@@ -1088,7 +1017,6 @@ if(file_exists('db.php')) {
         });
     }
 
-    // Event delegation for elements inside <main> (SPA-safe: survives content replacement)
     SPA.mainEl.addEventListener('input', (e) => {
         if (e.target.id === 'searchPersistent') {
             currentSearchQuery = e.target.value.trim().toLowerCase();
@@ -1109,7 +1037,6 @@ if(file_exists('db.php')) {
         }
     });
 
-    // ESC to close search overlay or clear filter
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (searchOverlay && searchOverlay.style.display !== 'none') {
@@ -1118,7 +1045,6 @@ if(file_exists('db.php')) {
                 clearSearch();
             }
         }
-        // Ctrl+F opens search overlay
         if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
             if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
                 e.preventDefault();
@@ -1127,9 +1053,6 @@ if(file_exists('db.php')) {
         }
     });
 
-    // ========================
-    // COLUMN BROWSER FILTERS
-    // ========================
     const activeFilters = { genre: '', artist: '', album: '' };
 
     function handleFilterClick(row) {
@@ -1148,7 +1071,6 @@ if(file_exists('db.php')) {
     }
 
     function updateFilterColumns() {
-        // When genre or artist is selected, filter the visible options in downstream columns
         const rows = document.querySelectorAll('.track-row');
         const visibleArtists = new Set();
         const visibleAlbums = new Set();
@@ -1158,23 +1080,19 @@ if(file_exists('db.php')) {
             const artist = r.dataset.artist || '';
             const album = r.dataset.album || '';
 
-            // Check genre filter
             if (activeFilters.genre && genre !== activeFilters.genre) return;
             visibleArtists.add(artist);
 
-            // Check artist filter
             if (activeFilters.artist && artist !== activeFilters.artist) return;
             visibleAlbums.add(album);
         });
 
-        // Update artist column visibility
         document.querySelectorAll('.filter-row[data-filter="artist"]').forEach(fr => {
             const val = fr.dataset.value;
-            if (!val) { fr.style.display = ''; return; } // "Todos" always visible
+            if (!val) { fr.style.display = ''; return; }
             fr.style.display = visibleArtists.has(val) ? '' : 'none';
         });
 
-        // Update album column visibility
         document.querySelectorAll('.filter-row[data-filter="album"]').forEach(fr => {
             const val = fr.dataset.value;
             if (!val) { fr.style.display = ''; return; }
@@ -1182,15 +1100,11 @@ if(file_exists('db.php')) {
         });
     }
 
-    // ========================
-    // UNIFIED FILTER FUNCTION
-    // ========================
     function applyAllFilters() {
         const rows = document.querySelectorAll('.track-row');
         rows.forEach(row => {
             let show = true;
 
-            // Column browser filters
             if (activeFilters.genre) {
                 if ((row.dataset.genre || '') !== activeFilters.genre) show = false;
             }
@@ -1201,7 +1115,6 @@ if(file_exists('db.php')) {
                 if ((row.dataset.album || '') !== activeFilters.album) show = false;
             }
 
-            // Search filter
             if (show && currentSearchQuery) {
                 const title = (row.dataset.title || '').toLowerCase();
                 const artist = (row.dataset.artist || '').toLowerCase();
@@ -1215,9 +1128,6 @@ if(file_exists('db.php')) {
         });
     }
 
-    // ========================
-    // INIT DASHBOARD (SPA-safe re-init)
-    // ========================
     function initDashboardEvents() {
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -1225,12 +1135,10 @@ if(file_exists('db.php')) {
         activeFilters.artist = urlParams.get('artist') || '';
         activeFilters.album = urlParams.get('album') || '';
         
-        // Auto-select filter rows based on query
         if (activeFilters.artist) {
             const row = document.querySelector(`.filter-row[data-filter="artist"][data-value="${activeFilters.artist}"]`);
             if (row) {
                 row.classList.add('selected');
-                // Scroll to view
                 row.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }
         }
@@ -1249,21 +1157,16 @@ if(file_exists('db.php')) {
         applyAllFilters();
     }
 
-    // ========================
-    // MULTI-SELECT FEATURE (Visual Selection)
-    // ========================
     const bulkActionsBar = document.getElementById('bulkActionsBar');
     const bulkSelectedCount = document.getElementById('bulkSelectedCount');
     const bulkAddQueueBtn = document.getElementById('bulkAddQueue');
     const bulkDeleteBtn = document.getElementById('bulkDelete');
     const bulkCancelBtn = document.getElementById('bulkCancel');
 
-    // Handle track row clicks with Shift/Ctrl
     document.addEventListener('click', (e) => {
         const row = e.target.closest('.track-row');
         if (!row) return;
         
-        // Ignore if clicking on play icon
         if (e.target.closest('.play-icon')) {
             playTrack(row);
             return;
@@ -1274,7 +1177,6 @@ if(file_exists('db.php')) {
         const currentIndex = allRows.indexOf(row);
         
         if (e.shiftKey && lastSelectedIndex !== -1) {
-            // Shift-click: select range
             e.preventDefault();
             const start = Math.min(lastSelectedIndex, currentIndex);
             const end = Math.max(lastSelectedIndex, currentIndex);
@@ -1287,7 +1189,6 @@ if(file_exists('db.php')) {
             }
             lastSelectedIndex = currentIndex;
         } else if (e.ctrlKey || e.metaKey) {
-            // Ctrl-click: toggle individual selection
             e.preventDefault();
             if (selectedTracks.has(trackId)) {
                 selectedTracks.delete(trackId);
@@ -1298,7 +1199,6 @@ if(file_exists('db.php')) {
             }
             lastSelectedIndex = currentIndex;
         } else {
-            // Normal click: play track and clear selection
             playTrack(row);
             clearSelection();
             lastSelectedIndex = -1;
@@ -1307,7 +1207,6 @@ if(file_exists('db.php')) {
         updateBulkActions();
     });
 
-    // ESC key to cancel selection
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && selectedTracks.size > 0) {
             clearSelection();
@@ -1334,7 +1233,6 @@ if(file_exists('db.php')) {
         updateBulkActions();
     }
 
-    // Bulk actions
     if (bulkAddQueueBtn) {
         bulkAddQueueBtn.addEventListener('click', () => {
             const allRows = getAllTracks();
@@ -1365,7 +1263,6 @@ if(file_exists('db.php')) {
                     let deleted = 0;
                     let failed = 0;
                     
-                    // Delete sequentially
                     const deleteNext = (index) => {
                         if (index >= ids.length) {
                             showToast(`${deleted} música(s) apagada(s)` + (failed > 0 ? ` (${failed} falharam)` : ''));
@@ -1385,7 +1282,6 @@ if(file_exists('db.php')) {
                             if (data.ok) {
                                 const row = getAllTracks().find(r => r.dataset.id === id);
                                 if (row) {
-                                    // If playing this track, stop
                                     if (playingTrackId == id) {
                                         audio.pause();
                                         audio.src = '';
@@ -1438,9 +1334,6 @@ if(file_exists('db.php')) {
         localStorage.removeItem('sr_state');
     }
 
-    // ========================
-    // QUEUE FEATURE
-    // ========================
     let playQueue = [];
     let queueViewActive = false;
     let savedTrackListHTML = '';
@@ -1465,7 +1358,6 @@ if(file_exists('db.php')) {
         }
     }
 
-    // Context menu on right-click
     document.addEventListener('contextmenu', (e) => {
         const row = e.target.closest('.track-row');
         if (!row) return;
@@ -1475,7 +1367,6 @@ if(file_exists('db.php')) {
         contextMenu.style.left = e.pageX + 'px';
         contextMenu.style.top = e.pageY + 'px';
 
-        // Keep within viewport
         const rect = contextMenu.getBoundingClientRect();
         if (rect.right > window.innerWidth) {
             contextMenu.style.left = (e.pageX - rect.width) + 'px';
@@ -1494,7 +1385,6 @@ if(file_exists('db.php')) {
         addToQueue(ctxTargetRow);
     });
 
-    // Delete track via context menu
     if (ctxDelete) {
         ctxDelete.addEventListener('click', () => {
             if (!ctxTargetRow) return;
@@ -1505,7 +1395,6 @@ if(file_exists('db.php')) {
                 'Apagar Música',
                 'Tens a certeza que queres apagar "' + title + '"? Esta ação é irreversível.',
                 () => {
-                    // User confirmed
                     fetch('api.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1517,23 +1406,19 @@ if(file_exists('db.php')) {
                     })
                     .then(data => {
                         if (data.ok) {
-                            // If playing this track, stop playback and reset UI
                             if (playingTrackId == id) {
                                 audio.pause();
                                 audio.src = '';
                                 playingTrackId = null;
                                 currentTrackEl = null;
                                 
-                                // Reset Now Playing panel
                                 document.getElementById('npTitle').textContent = 'SoundRepo';
                                 document.getElementById('npArtist').textContent = 'Seleciona uma música';
                                 document.getElementById('npAlbum').textContent = '';
                                 
-                                // Reset footer
                                 document.getElementById('footerTitle').textContent = 'SoundRepo';
                                 document.getElementById('footerArtist').textContent = 'Pronto';
                                 
-                                // Reset album art
                                 npArt.style.backgroundImage = 'none';
                                 npArt.style.background = '';
                                 npArt.querySelector('.art-icon').style.display = '';
@@ -1544,14 +1429,11 @@ if(file_exists('db.php')) {
                                 footerArt.innerHTML = '<i class="ph ph-music-note"></i>';
                                 footerArt.classList.remove('has-track');
                                 
-                                // Reset play button
                                 updatePlayState(false);
                                 
-                                // Clear localStorage
                                 localStorage.removeItem('sr_state');
                             }
                             
-                            // Remove row from list
                             ctxTargetRow.remove();
                             showToast('Música apagada: ' + title);
                         } else {
@@ -1598,7 +1480,6 @@ if(file_exists('db.php')) {
         toast._timer = setTimeout(() => toast.classList.remove('show'), 2500);
     }
 
-    // Queue view toggle
     if (navQueue) {
         navQueue.addEventListener('click', (e) => {
             e.preventDefault();
@@ -1614,19 +1495,16 @@ if(file_exists('db.php')) {
         queueViewActive = true;
         const container = document.querySelector('.track-list-container');
         if (!container) {
-            // If container doesn't exist (e.g. on "Adicionar" page), redirect to home first
             SPA.navigate('index.php').then(() => {
                 setTimeout(showQueueView, 100);
             });
             return;
         }
 
-        // Save original HTML only on first open
         if (!savedTrackListHTML) {
             savedTrackListHTML = container.innerHTML;
         }
 
-        // Highlight nav
         if (navQueue) navQueue.classList.add('active');
         const homeNav = document.querySelector('.nav-item[href="index.php"]');
         if (homeNav) homeNav.classList.remove('active');
@@ -1661,7 +1539,6 @@ if(file_exists('db.php')) {
 
         html += '</tbody></table>';
 
-        // Header
         container.innerHTML = '<div class="queue-header"><span class="queue-header-title"><i class="ph ph-queue"></i> Fila de reprodução (' + playQueue.length + ')</span><button class="btn-secondary btn-queue-clear" onclick="clearQueue()"><i class="ph ph-trash"></i> Limpar Fila</button></div>' + html;
     }
 
@@ -1676,7 +1553,6 @@ if(file_exists('db.php')) {
         if (navQueue) navQueue.classList.remove('active');
         const homeNav = document.querySelector('.nav-item[href="index.php"]');
         if (homeNav) homeNav.classList.add('active');
-        // Restore playing state
         SPA.restorePlayingState();
         loadTrackDurations();
     }
@@ -1717,9 +1593,6 @@ if(file_exists('db.php')) {
         return (str || '').replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ========================
-    // LOCALSTORAGE PERSISTENCE
-    // ========================
     function savePlayerState() {
         try {
             localStorage.setItem('sr_state', JSON.stringify({
@@ -1744,20 +1617,17 @@ if(file_exists('db.php')) {
 
             playingTrackId = state.trackId;
 
-            // Restore queue
             if (state.queue && Array.isArray(state.queue)) {
                 playQueue = state.queue;
                 renderQueueBadge();
             }
 
-            // Update UI
             document.getElementById('npTitle').textContent = state.title || 'SoundRepo';
             document.getElementById('npArtist').textContent = state.artist || '';
             document.getElementById('npAlbum').textContent = state.album || '';
             document.getElementById('footerTitle').textContent = state.title || '';
             document.getElementById('footerArtist').textContent = state.artist || '';
 
-            // Cover
             if (state.cover) {
                 npArt.style.backgroundImage = "url('" + state.cover + "')";
                 npArt.style.backgroundSize = 'cover';
@@ -1781,7 +1651,6 @@ if(file_exists('db.php')) {
                 footerArt.classList.add('has-track');
             }
 
-            // Load audio (paused)
             audio.src = state.src;
             audio.addEventListener('loadedmetadata', function onMeta() {
                 if (state.currentTime > 0 && state.currentTime < audio.duration) {
@@ -1802,7 +1671,6 @@ if(file_exists('db.php')) {
         }
     }
 
-    // Save state periodically + on key events
     let _lastSave = 0;
     audio.addEventListener('timeupdate', () => {
         const now = Date.now();
@@ -1814,15 +1682,10 @@ if(file_exists('db.php')) {
     audio.addEventListener('pause', savePlayerState);
     audio.addEventListener('play', savePlayerState);
 
-    // ========================
-    // CUSTOM CONFIRM DIALOG
-    // ========================
     function showConfirm(title, message, onConfirm) {
-        // Create overlay
         const overlay = document.createElement('div');
         overlay.className = 'confirm-modal-overlay';
         
-        // Create modal
         const modal = document.createElement('div');
         modal.className = 'confirm-modal';
         
@@ -1858,11 +1721,9 @@ if(file_exists('db.php')) {
             if (onConfirm) onConfirm();
         });
         
-        // Focus confirm button
         setTimeout(() => btnConfirm.focus(), 100);
     }
 
-    // Restore on startup
     restorePlayerState();
     initDashboardEvents();
     </script>

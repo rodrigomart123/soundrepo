@@ -1,13 +1,11 @@
 ﻿<?php
 require 'db.php';
 require 'extract_cover.php';
+require 'apple_music.php';
 
 $mensagem = "";
 $erro = "";
 
-// ============================================
-// HANDLE SINGLE TRACK UPLOAD
-// ============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mode'] === 'single') {
     $artista = trim($_POST['artista'] ?? '');
     $album   = trim($_POST['album'] ?? '');
@@ -17,7 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
     $destino = '';
 
-    // Priority 1: File upload
     if (isset($_FILES['ficheiroAudio']) && $_FILES['ficheiroAudio']['error'] == 0) {
         $nomeArquivo = $_FILES['ficheiroAudio']['name'];
         $tempPath    = $_FILES['ficheiroAudio']['tmp_name'];
@@ -29,7 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
             $destino = '';
         }
     }
-    // Priority 2: Manual path
     elseif (!empty($caminho)) {
         $caminho = str_replace('\\', '/', $caminho);
 
@@ -50,7 +46,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
     if ($destino && !$erro) {
         try {
-            // 1. Artist
             $stmt = $pdo->prepare("SELECT ArtistId FROM Artists WHERE Name = ?");
             $stmt->execute([$artista]);
             $artistaExistente = $stmt->fetch();
@@ -62,7 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 $artistId = $pdo->lastInsertId();
             }
 
-            // 2. Album
+            soundrepoEnsureArtistImage($pdo, (int) $artistId, $artista);
+
             $stmt = $pdo->prepare("SELECT AlbumId FROM Albums WHERE Title = ? AND ArtistId = ?");
             $stmt->execute([$album, $artistId]);
             $albumExistente = $stmt->fetch();
@@ -74,11 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 $albumId = $pdo->lastInsertId();
             }
 
-            // 3. Music
             $stmt = $pdo->prepare("INSERT INTO Musics (Title, FilePath, AlbumId, Genre) VALUES (?, ?, ?, ?)");
             $stmt->execute([$musica, $destino, $albumId, $genero]);
 
-            // 4. Cover: uploaded image file takes priority
             if (isset($_FILES['coverFile']) && $_FILES['coverFile']['error'] == 0) {
                 if (!is_dir('covers')) mkdir('covers', 0755, true);
                 $coverExt = strtolower(pathinfo($_FILES['coverFile']['name'], PATHINFO_EXTENSION));
@@ -92,7 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                     }
                 }
             }
-            // 5. Cover: iTunes URL fallback
             elseif (!empty($_POST['coverUrl'])) {
                 $coverUrlInput = filter_var($_POST['coverUrl'], FILTER_VALIDATE_URL);
                 if ($coverUrlInput) {
@@ -117,15 +110,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
     }
 }
 
-// ============================================
-// HANDLE BULK IMPORT (INTELLIGENT PARSING)
-// Supports: webkitdirectory file upload OR manual path
-// ============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mode'] === 'bulk') {
     $detectMeta = isset($_POST['detectMeta']) && $_POST['detectMeta'] === '1';
     $extensions = ['mp3','wav','ogg','flac','m4a','aac','wma'];
+    $bulkTitles = $_POST['bulkTitle'] ?? [];
+    $bulkArtists = $_POST['bulkArtist'] ?? [];
+    $bulkAlbums = $_POST['bulkAlbum'] ?? [];
+    $bulkGenres = $_POST['bulkGenre'] ?? [];
+    $bulkTrackNumbers = $_POST['bulkTrackNumber'] ?? [];
 
-    // Determine source: file upload (webkitdirectory) or manual path
     $useUpload = isset($_FILES['folderUpload']) && !empty($_FILES['folderUpload']['name'][0]);
     $pasta = trim($_POST['pastaPath'] ?? '');
 
@@ -138,14 +131,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
     }
 
     if (!$erro) {
-        // Collect files to import
-        $filesToImport = []; // Each: ['name' => filename, 'source' => path_or_tmp, 'relativePath' => '...']
+        $filesToImport = [];
         $folderName = '';
 
         if ($useUpload) {
-            // Files from webkitdirectory input
             $relativePaths = json_decode($_POST['relativePaths'] ?? '[]', true) ?: [];
             $totalFiles = count($_FILES['folderUpload']['name']);
+            $bulkMetaIndex = 0;
 
             for ($i = 0; $i < $totalFiles; $i++) {
                 if ($_FILES['folderUpload']['error'][$i] !== 0) continue;
@@ -158,10 +150,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                     'name' => $name,
                     'source' => $_FILES['folderUpload']['tmp_name'][$i],
                     'relativePath' => $relPath,
-                    'isUpload' => true
+                    'isUpload' => true,
+                    'meta' => [
+                        'title' => trim($bulkTitles[$bulkMetaIndex] ?? ''),
+                        'artist' => trim($bulkArtists[$bulkMetaIndex] ?? ''),
+                        'album' => trim($bulkAlbums[$bulkMetaIndex] ?? ''),
+                        'genre' => trim($bulkGenres[$bulkMetaIndex] ?? ''),
+                        'trackNumber' => trim($bulkTrackNumbers[$bulkMetaIndex] ?? ''),
+                    ],
                 ];
+                $bulkMetaIndex++;
 
-                // Extract folder name from first file's relative path
                 if (!$folderName && $relPath) {
                     $parts = explode('/', str_replace('\\', '/', $relPath));
                     if (count($parts) > 1) {
@@ -170,7 +169,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 }
             }
         } else {
-            // Files from manual path (scandir)
             foreach (scandir($pasta) as $f) {
                 $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
                 if (!in_array($ext, $extensions)) continue;
@@ -188,18 +186,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
         if (empty($filesToImport)) {
             $erro = "Nenhum ficheiro de áudio encontrado na pasta selecionada.";
         } else {
-            // Limit to prevent timeout (max 100 files per batch)
             if (count($filesToImport) > 100) {
                 $erro = "Demasiados ficheiros (" . count($filesToImport) . "). Máximo: 100 ficheiros por importação.";
             } else {
                 $imported = 0;
                 $failed = 0;
 
-            // Cache for artist/album IDs to avoid repeated queries
             $artistCache = [];
             $albumCache = [];
+            $artistImageCache = [];
 
-            // Helper: get or create artist
             $getArtistId = function($name) use ($pdo, &$artistCache) {
                 $key = strtolower($name);
                 if (isset($artistCache[$key])) return $artistCache[$key];
@@ -217,7 +213,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 return $id;
             };
 
-            // Helper: get or create album
             $getAlbumId = function($title, $artistId) use ($pdo, &$albumCache) {
                 $key = strtolower($title) . '_' . $artistId;
                 if (isset($albumCache[$key])) return $albumCache[$key];
@@ -235,70 +230,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 return $id;
             };
 
+            $ensureArtistImageForImport = function($artistId, $artistName) use ($pdo, &$artistImageCache) {
+                $key = strtolower($artistName);
+                if (isset($artistImageCache[$key])) return;
+
+                $stmt = $pdo->prepare("SELECT ImagePath, ImageLookupChecked FROM Artists WHERE ArtistId = ?");
+                $stmt->execute([$artistId]);
+                $artistRow = $stmt->fetch();
+
+                soundrepoEnsureArtistImage(
+                    $pdo,
+                    (int) $artistId,
+                    $artistName,
+                    $artistRow['ImagePath'] ?? null,
+                    (int) ($artistRow['ImageLookupChecked'] ?? 0)
+                );
+
+                $artistImageCache[$key] = true;
+            };
+
             if (!is_dir('musicas')) mkdir('musicas', 0755, true);
 
-            // Process files with progress feedback
             $processedCount = 0;
-            $maxFiles = min(count($filesToImport), 100); // Hard limit to 100
+            $maxFiles = min(count($filesToImport), 100);
 
             foreach ($filesToImport as $fileInfo) {
-                if ($processedCount >= $maxFiles) break; // Stop at limit
+                if ($processedCount >= $maxFiles) break;
                 
                 $f = $fileInfo['name'];
                 $sanitized = preg_replace('/[^a-zA-Z0-9._\-\s]/', '', $f);
                 $destino = 'musicas/' . $sanitized;
 
-                // Copy or move file
                 $ok = $fileInfo['isUpload']
                     ? move_uploaded_file($fileInfo['source'], $destino)
                     : copy($fileInfo['source'], $destino);
 
                 if ($ok) {
                     $baseName = pathinfo($f, PATHINFO_FILENAME);
-                    $trackTitle = $baseName;
-                    $trackArtist = 'Desconhecido';
-                    $trackAlbum = 'Desconhecido';
+                    $trackMeta = $fileInfo['meta'] ?? [];
+                    $embeddedMeta = $detectMeta ? extractAudioMetadata($destino) : [];
+                    $detectedTrackNumber = null;
+                    if (preg_match('/^(\d{1,3})[\s.\-]+/', $baseName, $trackNumberMatches)) {
+                        $detectedTrackNumber = (int) $trackNumberMatches[1];
+                    }
 
-                    // Remove track numbers FIRST (e.g., "01 - C418 - Key" -> "C418 - Key")
+                    $trackTitle = trim($trackMeta['title'] ?? '');
+                    $trackArtist = trim($trackMeta['artist'] ?? '');
+                    $trackAlbum = trim($trackMeta['album'] ?? '');
+                    $trackGenre = trim($trackMeta['genre'] ?? '');
+                    $trackNumber = normalizeTrackNumberValue($trackMeta['trackNumber'] ?? null);
+
+                    if ($trackTitle === '' && !empty($embeddedMeta['title'])) $trackTitle = trim($embeddedMeta['title']);
+                    if ($trackArtist === '' && !empty($embeddedMeta['artist'])) $trackArtist = trim($embeddedMeta['artist']);
+                    if ($trackAlbum === '' && !empty($embeddedMeta['album'])) $trackAlbum = trim($embeddedMeta['album']);
+                    if ($trackGenre === '' && !empty($embeddedMeta['genre'])) $trackGenre = trim($embeddedMeta['genre']);
+                    if ($trackNumber === null && isset($embeddedMeta['trackNumber'])) $trackNumber = normalizeTrackNumberValue($embeddedMeta['trackNumber']);
+
                     $cleaned = preg_replace('/^\d{1,3}[\s.\-]+/', '', $baseName);
-                    
-                    // Clean common tags: (Official Video), [Lyrics], etc.
                     $cleaned = preg_replace('/\s*[\(\[][^\)\]]*[\)\]]\s*/', ' ', $cleaned);
                     $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
 
-                    // ALWAYS try to parse Artist and Title using multiple possible separators
-                    // Supports: "Artist - Title", "Artist-Title", "Artist – Title", "Artist — Title"
+                    // faz fallback para o nome do ficheiro quando as tags embutidas não chegam
                     $parts = preg_split('/\s*[\-\–\—]\s*/', $cleaned, 2);
                     
-                    if (count($parts) >= 2) {
-                        $trackArtist = trim($parts[0]);
-                        $trackTitle = trim($parts[1]);
-                    } else {
-                        $trackTitle = $cleaned;
-                    }
-
-                    if ($detectMeta) {
-                        // Detect album from folder name (webkitdirectory or parent folder)
-                        if ($folderName && !preg_match('/^(music|musica|songs|downloads|desktop)$/i', $folderName)) {
-                            $trackAlbum = $folderName;
+                    if ($trackArtist === '' || $trackTitle === '') {
+                        if (count($parts) >= 2) {
+                            if ($trackArtist === '') $trackArtist = trim($parts[0]);
+                            if ($trackTitle === '') $trackTitle = trim($parts[1]);
+                        } elseif ($trackTitle === '') {
+                            $trackTitle = $cleaned;
                         }
                     }
 
-                    // Fallbacks
+                    if ($trackAlbum === '' && $detectMeta) {
+                        $relativePathClean = str_replace('\\', '/', $fileInfo['relativePath'] ?? '');
+                        $pathParts = array_values(array_filter(explode('/', $relativePathClean)));
+                        $parentFolder = count($pathParts) > 1 ? $pathParts[count($pathParts) - 2] : $folderName;
+
+                        if ($parentFolder && !preg_match('/^(music|musica|songs|downloads|desktop)$/i', $parentFolder)) {
+                            $trackAlbum = $parentFolder;
+                        }
+                    }
+
                     if (empty($trackTitle)) $trackTitle = $baseName;
                     if (empty($trackArtist)) $trackArtist = 'Desconhecido';
                     if (empty($trackAlbum)) $trackAlbum = 'Desconhecido';
+                    if ($trackNumber === null) $trackNumber = $detectedTrackNumber;
 
                     try {
                         $artistId = $getArtistId($trackArtist);
+                        $ensureArtistImageForImport($artistId, $trackArtist);
                         $albumId = $getAlbumId($trackAlbum, $artistId);
-                        $stmt = $pdo->prepare("INSERT INTO Musics (Title, FilePath, AlbumId) VALUES (?, ?, ?)");
-                        $stmt->execute([$trackTitle, $destino, $albumId]);
+                        $stmt = $pdo->prepare("INSERT INTO Musics (Title, FilePath, AlbumId, Genre, TrackNumber) VALUES (?, ?, ?, ?, ?)");
+                        $stmt->execute([$trackTitle, $destino, $albumId, $trackGenre !== '' ? $trackGenre : null, $trackNumber]);
                         
-                        // Try to extract embedded cover art
                         $coverPath = extractEmbeddedCover($destino, $albumId);
                         if ($coverPath) {
-                            // Update album with extracted cover
                             $stmt = $pdo->prepare("UPDATE Albums SET CoverPath = ? WHERE AlbumId = ? AND (CoverPath IS NULL OR CoverPath = '')");
                             $stmt->execute([$coverPath, $albumId]);
                         }
@@ -332,7 +359,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 </head>
 <body style="grid-template-columns: var(--sidebar-width) 1fr; grid-template-areas: 'sidebar main' 'sidebar main';">
 
-    <!-- SIDEBAR -->
     <nav class="sidebar">
         <div class="sidebar-top">
             <div class="nav-section">
@@ -365,10 +391,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
         </div>
     </nav>
 
-    <!-- MAIN: ADD PAGE -->
     <main class="main-view add-page fade-in" id="mainContent">
-
-        <!-- Tab Header -->
         <div class="add-tabs">
             <button class="add-tab active" data-tab="single" onclick="switchTab('single')">
                 <i class="ph ph-music-note-simple"></i> Adicionar M&uacute;sica
@@ -388,15 +411,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
             <div class="add-msg msg-error"><i class="ph ph-warning-circle"></i> <?= $erro ?></div>
         <?php endif; ?>
 
-        <!-- ==================== -->
-        <!-- TAB: SINGLE TRACK    -->
-        <!-- ==================== -->
         <div class="add-panel" id="tabSingle">
             <form method="POST" action="adicionar.php" enctype="multipart/form-data">
                 <input type="hidden" name="mode" value="single">
 
                 <div class="add-layout">
-                    <!-- LEFT: Cover area -->
                     <div class="add-cover-area">
                         <div class="cover-box" id="coverBox">
                             <img id="coverPreview" src="" alt="Capa">
@@ -417,9 +436,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                         </button>
                     </div>
 
-                    <!-- RIGHT: Form fields -->
                     <div class="add-fields">
-                        <!-- Source selector -->
                         <div class="source-toggle">
                             <button type="button" class="source-btn active" data-source="upload" onclick="switchSource('upload')">
                                 <i class="ph ph-upload-simple"></i> Upload Ficheiro
@@ -465,7 +482,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                             <input type="text" name="genero" id="inputGenero" placeholder="Ex: Pop, Rock, Hip-Hop...">
                         </div>
 
-                        <!-- iTunes Suggestions -->
                         <div id="itunesSuggestions" class="itunes-suggestions" style="display:none;"></div>
 
                         <button type="submit" class="btn-primary btn-add-submit">
@@ -476,9 +492,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
             </form>
         </div>
 
-        <!-- ==================== -->
-        <!-- TAB: BULK IMPORT     -->
-        <!-- ==================== -->
         <div class="add-panel" id="tabBulk" style="display:none;">
             <form method="POST" action="adicionar.php" enctype="multipart/form-data">
                 <input type="hidden" name="mode" value="bulk">
@@ -506,7 +519,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                             <span class="bulk-file-count" id="bulkFileCount"></span>
                         </div>
 
-                        <!-- Fallback: Manual Path -->
+                        <div class="bulk-preview-card" id="bulkPreviewCard" style="display:none;">
+                            <div class="bulk-apply-card" id="bulkApplyCard" style="display:none;">
+                                <h4>Edição rápida em massa</h4>
+                                <p>Aplica um valor comum a todas as músicas ou numera as faixas de forma sequencial.</p>
+                                <div class="bulk-apply-grid">
+                                    <input type="text" id="bulkApplyArtist" placeholder="Artista para todas">
+                                    <input type="text" id="bulkApplyAlbum" placeholder="Álbum para todas">
+                                    <input type="text" id="bulkApplyGenre" placeholder="Género para todas">
+                                    <input type="number" id="bulkApplyTrackStart" min="1" placeholder="Faixa inicial">
+                                </div>
+                                <div class="bulk-apply-actions">
+                                    <button type="button" class="btn-secondary" id="btnApplyBulkFields">
+                                        <i class="ph ph-pencil-simple-line"></i> Aplicar campos preenchidos a todas
+                                    </button>
+                                    <button type="button" class="btn-secondary" id="btnApplyTrackNumbers">
+                                        <i class="ph ph-list-numbers"></i> Numerar sequencialmente
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="bulk-preview-header">
+                                <div>
+                                    <h4>Pré-visualização editável</h4>
+                                    <p>Confirma ou corrige faixa, título, artista, álbum e género antes de importar.</p>
+                                </div>
+                            </div>
+                            <div class="bulk-preview-list" id="bulkPreviewList"></div>
+                        </div>
+
                         <div class="bulk-path-toggle">
                             <button type="button" class="btn-bulk-toggle" id="btnShowManualPath">
                                 <i class="ph ph-keyboard"></i> Ou introduzir caminho manualmente
@@ -528,7 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
                         <div class="bulk-note">
                             <i class="ph ph-lightbulb"></i>
-                            <span>Com a dete&ccedil;&atilde;o ativa, ficheiros no formato <strong>"Artista - T&iacute;tulo.mp3"</strong> s&atilde;o analisados automaticamente. O nome da pasta &eacute; usado como &aacute;lbum. Sem dete&ccedil;&atilde;o, tudo fica como "Desconhecido".</span>
+                            <span id="bulkTipText">A carregar dica...</span>
                         </div>
 
                         <button type="submit" class="btn-primary btn-add-submit">
@@ -539,20 +580,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
             </form>
         </div>
 
-        <!-- ==================== -->
-        <!-- JAVASCRIPT           -->
-        <!-- ==================== -->
         <script>
         (function() {
-            // === TAB SWITCHING ===
+            var bulkTips = [
+                'Dica: se a tua pasta tiver subpastas por álbum, o preview tenta usar automaticamente essa pasta como nome do álbum.',
+                'Dica: podes corrigir artista, álbum, género e faixa antes de importar, evitando trabalho depois na biblioteca.',
+                'Dica: usa o botão de numeração sequencial quando tens um álbum inteiro e os ficheiros não trazem track numbers corretos.',
+                'Dica: o SoundRepo tenta ler tags embutidas de MP3 antes de cair para o nome do ficheiro.',
+                'Dica: aplicar artista, álbum ou género a todas é ideal para mixtapes, bandas sonoras ou discos importados de uma vez.'
+            ];
+
+            function setRandomBulkTip() {
+                var bulkTipText = document.getElementById('bulkTipText');
+                if (!bulkTipText) return;
+                bulkTipText.textContent = bulkTips[Math.floor(Math.random() * bulkTips.length)];
+            }
+
             window.switchTab = function(tab) {
                 document.querySelectorAll('.add-tab').forEach(function(t) { t.classList.remove('active'); });
                 document.querySelector('.add-tab[data-tab="' + tab + '"]').classList.add('active');
                 document.getElementById('tabSingle').style.display = (tab === 'single') ? '' : 'none';
                 document.getElementById('tabBulk').style.display = (tab === 'bulk') ? '' : 'none';
+                if (tab === 'bulk') setRandomBulkTip();
             };
 
-            // === SOURCE TOGGLE (Upload / Manual Path) ===
             window.switchSource = function(src) {
                 document.querySelectorAll('.source-btn').forEach(function(b) { b.classList.remove('active'); });
                 document.querySelector('.source-btn[data-source="' + src + '"]').classList.add('active');
@@ -560,7 +611,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 document.getElementById('srcPath').style.display = (src === 'path') ? '' : 'none';
             };
 
-            // === ELEMENTS ===
             var fileInput = document.getElementById('ficheiroAudio');
             var pathInput = document.getElementById('caminhoManual');
             var titleInput = document.getElementById('inputMusica');
@@ -574,11 +624,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
             var coverFileInput = document.getElementById('coverFileInput');
             var btnResetManual = document.getElementById('btnResetManual');
             var searchTimer = null;
-            var manualMode = false; // When true, iTunes auto-search is suppressed
+            var manualMode = false;
 
             if (!titleInput) return;
 
-            // === MANUAL COVER UPLOAD (preview) ===
             if (coverFileInput) {
                 coverFileInput.addEventListener('change', function() {
                     var file = coverFileInput.files[0];
@@ -596,7 +645,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 });
             }
 
-            // === RESET / MANUAL BUTTON ===
             function showResetBtn() {
                 if (btnResetManual) btnResetManual.style.display = '';
             }
@@ -606,32 +654,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
             if (btnResetManual) {
                 btnResetManual.addEventListener('click', function() {
-                    // Enter manual mode: suppress auto-search
                     manualMode = true;
                     clearTimeout(searchTimer);
 
-                    // Clear cover
                     if (coverUrl) coverUrl.value = '';
                     if (coverPreview) { coverPreview.src = ''; coverPreview.style.display = 'none'; }
                     if (coverPlaceholder) coverPlaceholder.style.display = '';
                     if (coverStatus) { coverStatus.textContent = 'Modo manual ativo'; coverStatus.className = 'cover-status'; }
                     if (coverFileInput) coverFileInput.value = '';
 
-                    // Clear text inputs
                     titleInput.value = '';
                     artistInput.value = '';
                     albumInput.value = '';
                     if (genreInput) genreInput.value = '';
 
-                    // Clear suggestions
                     clearSuggestions();
                     hideResetBtn();
                 });
             }
 
-            // === PARSE FILENAME ===
             function parseFilename(filename) {
-                // Re-enable auto-search on new file
                 manualMode = false;
                 var name = filename.replace(/\.[^.]+$/, '');
                 name = name.replace(/\s*[\(\[][^\)\]]*[\)\]]\s*/g, '').replace(/\s+[A-Za-z0-9_-]{11}$/, '').trim();
@@ -663,7 +705,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 });
             }
 
-            // === DEBOUNCED ITUNES SEARCH ===
             titleInput.addEventListener('input', function() {
                 if (!manualMode) debouncedSearch();
             });
@@ -688,7 +729,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 fetch('https://itunes.apple.com/search?term=' + encodeURIComponent(term) + '&media=music&limit=5')
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
-                        if (manualMode) return; // Abort if user switched to manual during fetch
+                        if (manualMode) return;
                         if (data.results && data.results.length > 0) {
                             showSuggestions(data.results);
                             applySuggestion(data.results[0]);
@@ -708,11 +749,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
             function applySuggestion(r) {
                 if (manualMode) return;
-                // Only fill album if empty
                 if (!albumInput.value && r.collectionName) albumInput.value = r.collectionName;
-                // Map genre from iTunes
                 if (genreInput && !genreInput.value && r.primaryGenreName) genreInput.value = r.primaryGenreName;
-                // Don't overwrite cover if user uploaded a file
                 if (coverFileInput && coverFileInput.files && coverFileInput.files.length > 0) return;
                 if (r.artworkUrl100) {
                     var url = r.artworkUrl100.replace('100x100', '600x600');
@@ -742,7 +780,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                         '</div>';
 
                     item.addEventListener('click', function() {
-                        manualMode = false; // Selecting a suggestion re-enables iTunes
+                        manualMode = false;
                         titleInput.value = r.trackName || titleInput.value;
                         artistInput.value = r.artistName || artistInput.value;
                         albumInput.value = r.collectionName || albumInput.value;
@@ -767,7 +805,224 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                 return d.innerHTML;
             }
 
-            // === FOLDER INPUT (webkitdirectory) ===
+            function extractLeadingTrackNumber(filename) {
+                var baseName = filename.replace(/\.[^.]+$/, '');
+                var match = baseName.match(/^(\d{1,3})[\s.\-]+/);
+                return match ? String(parseInt(match[1], 10)) : '';
+            }
+
+            function parseSyncsafeInt(bytes) {
+                return (bytes[0] << 21) | (bytes[1] << 14) | (bytes[2] << 7) | bytes[3];
+            }
+
+            function parseUInt32(bytes) {
+                return ((bytes[0] << 24) >>> 0) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3];
+            }
+
+            function decodeBrowserMetadataText(bytes, encoding) {
+                if (!bytes || !bytes.length) return '';
+
+                try {
+                    var decoder;
+                    if (encoding === 0) {
+                        decoder = new TextDecoder('iso-8859-1');
+                    } else if (encoding === 1) {
+                        if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+                            decoder = new TextDecoder('utf-16be');
+                            bytes = bytes.slice(2);
+                        } else if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+                            decoder = new TextDecoder('utf-16le');
+                            bytes = bytes.slice(2);
+                        } else {
+                            decoder = new TextDecoder('utf-16le');
+                        }
+                    } else if (encoding === 2) {
+                        decoder = new TextDecoder('utf-16be');
+                    } else {
+                        decoder = new TextDecoder('utf-8');
+                    }
+
+                    return decoder.decode(bytes).replace(/\u0000/g, '').replace(/\s+/g, ' ').trim();
+                } catch (e) {
+                    return '';
+                }
+            }
+
+            async function parseBrowserMP3Metadata(file) {
+                try {
+                    var headerBuffer = await file.slice(0, 10).arrayBuffer();
+                    var header = new Uint8Array(headerBuffer);
+                    if (header.length < 10 || String.fromCharCode(header[0], header[1], header[2]) !== 'ID3') {
+                        return {};
+                    }
+
+                    var versionMajor = header[3];
+                    var tagSize = parseSyncsafeInt([header[6], header[7], header[8], header[9]]);
+                    var tagBuffer = await file.slice(10, Math.min(file.size, tagSize + 10)).arrayBuffer();
+                    var tagData = new Uint8Array(tagBuffer);
+                    var offset = 0;
+                    var metadata = {};
+
+                    while (offset + 10 <= tagData.length) {
+                        var frameId = String.fromCharCode(tagData[offset], tagData[offset + 1], tagData[offset + 2], tagData[offset + 3]);
+                        if (!/^[A-Z0-9]{4}$/.test(frameId)) break;
+
+                        var sizeBytes = [tagData[offset + 4], tagData[offset + 5], tagData[offset + 6], tagData[offset + 7]];
+                        var frameSize = versionMajor >= 4 ? parseSyncsafeInt(sizeBytes) : parseUInt32(sizeBytes);
+                        if (!frameSize || offset + 10 + frameSize > tagData.length) break;
+
+                        if (['TIT2', 'TPE1', 'TPE2', 'TALB', 'TCON', 'TRCK'].indexOf(frameId) !== -1) {
+                            var frameBytes = tagData.slice(offset + 10, offset + 10 + frameSize);
+                            var textValue = decodeBrowserMetadataText(frameBytes.slice(1), frameBytes[0] || 0);
+                            if (textValue) {
+                                if (frameId === 'TIT2') metadata.title = textValue;
+                                if (frameId === 'TPE1') metadata.artist = textValue;
+                                if (frameId === 'TPE2' && !metadata.artist) metadata.artist = textValue;
+                                if (frameId === 'TALB') metadata.album = textValue;
+                                if (frameId === 'TCON') metadata.genre = textValue;
+                                if (frameId === 'TRCK') {
+                                    var numMatch = textValue.match(/\d+/);
+                                    if (numMatch) metadata.trackNumber = String(parseInt(numMatch[0], 10));
+                                }
+                            }
+                        }
+
+                        offset += 10 + frameSize;
+                    }
+
+                    return metadata;
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            async function parseBrowserAudioMetadata(file) {
+                var ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'mp3') {
+                    return await parseBrowserMP3Metadata(file);
+                }
+                return {};
+            }
+
+            function isGenericFolderName(name) {
+                return /^(music|musica|songs|downloads|desktop)$/i.test((name || '').trim());
+            }
+
+            async function parseBulkTrackMeta(file, relativePath, detectMetaEnabled) {
+                var filename = file.name;
+                var baseName = filename.replace(/\.[^.]+$/, '');
+                var cleaned = baseName.replace(/^\d{1,3}[\s.\-]+/, '');
+                cleaned = cleaned.replace(/\s*[\(\[][^\)\]]*[\)\]]\s*/g, ' ');
+                cleaned = cleaned.replace(/\s+/g, ' ').trim();
+                var embeddedMeta = detectMetaEnabled ? await parseBrowserAudioMetadata(file) : {};
+
+                var title = embeddedMeta.title || cleaned || baseName;
+                var artist = embeddedMeta.artist || 'Desconhecido';
+                var album = embeddedMeta.album || 'Desconhecido';
+                var genre = embeddedMeta.genre || '';
+                var trackNumber = embeddedMeta.trackNumber || extractLeadingTrackNumber(filename);
+                var parts = cleaned.split(/\s*[\-–—]\s*/, 2);
+
+                if (!embeddedMeta.artist && parts.length >= 2) {
+                    artist = parts[0].trim() || 'Desconhecido';
+                    title = parts[1].trim() || title;
+                }
+
+                if (detectMetaEnabled) {
+                    var relParts = (relativePath || filename).replace(/\\/g, '/').split('/').filter(Boolean);
+                    var parentFolder = relParts.length > 1 ? relParts[relParts.length - 2] : '';
+                    if (parentFolder && !isGenericFolderName(parentFolder)) {
+                        album = parentFolder;
+                    }
+                }
+
+                return {
+                    title: title || baseName,
+                    artist: artist || 'Desconhecido',
+                    album: album || 'Desconhecido',
+                    genre: genre,
+                    trackNumber: trackNumber || ''
+                };
+            }
+
+            var bulkPreviewRenderToken = 0;
+
+            async function renderBulkPreview(files) {
+                var bulkPreviewCard = document.getElementById('bulkPreviewCard');
+                var bulkApplyCard = document.getElementById('bulkApplyCard');
+                var bulkPreviewList = document.getElementById('bulkPreviewList');
+                var detectMetaCheckbox = document.querySelector('input[name="detectMeta"]');
+                var renderToken = ++bulkPreviewRenderToken;
+
+                if (!bulkPreviewCard || !bulkPreviewList) return;
+
+                bulkPreviewList.innerHTML = '';
+
+                if (!files || files.length === 0) {
+                    bulkPreviewCard.style.display = 'none';
+                    if (bulkApplyCard) bulkApplyCard.style.display = 'none';
+                    return;
+                }
+
+                var audioExts = ['mp3','wav','ogg','flac','m4a','aac','wma'];
+                var audioFiles = [];
+                for (var i = 0; i < files.length; i++) {
+                    var ext = files[i].name.split('.').pop().toLowerCase();
+                    if (audioExts.indexOf(ext) !== -1) audioFiles.push(files[i]);
+                }
+
+                audioFiles = audioFiles.slice(0, 100);
+
+                if (audioFiles.length === 0) {
+                    bulkPreviewCard.style.display = 'none';
+                    if (bulkApplyCard) bulkApplyCard.style.display = 'none';
+                    return;
+                }
+
+                var metaRows = await Promise.all(audioFiles.map(async function(file) {
+                    var relativePath = file.webkitRelativePath || file.name;
+                    var meta = await parseBulkTrackMeta(file, relativePath, detectMetaCheckbox && detectMetaCheckbox.checked);
+                    return { file: file, relativePath: relativePath, meta: meta };
+                }));
+
+                if (renderToken !== bulkPreviewRenderToken) return;
+
+                metaRows.forEach(function(entry) {
+                    var row = document.createElement('div');
+                    row.className = 'bulk-preview-row';
+                    row.innerHTML =
+                        '<div class="bulk-preview-file">' +
+                            '<div class="bulk-preview-file-name">' + escH(entry.file.name) + '</div>' +
+                            '<div class="bulk-preview-file-path">' + escH(entry.relativePath) + '</div>' +
+                        '</div>' +
+                        '<div class="bulk-preview-fields">' +
+                            '<input type="number" name="bulkTrackNumber[]" value="' + escH(entry.meta.trackNumber) + '" min="1" placeholder="Faixa">' +
+                            '<input type="text" name="bulkTitle[]" value="' + escH(entry.meta.title) + '" placeholder="Título">' +
+                            '<input type="text" name="bulkArtist[]" value="' + escH(entry.meta.artist) + '" placeholder="Artista">' +
+                            '<input type="text" name="bulkAlbum[]" value="' + escH(entry.meta.album) + '" placeholder="Álbum">' +
+                            '<input type="text" name="bulkGenre[]" value="' + escH(entry.meta.genre) + '" placeholder="Género">' +
+                        '</div>';
+                    bulkPreviewList.appendChild(row);
+                });
+
+                if (bulkApplyCard) bulkApplyCard.style.display = '';
+                bulkPreviewCard.style.display = '';
+            }
+
+            function applyBulkField(selector, value) {
+                document.querySelectorAll(selector).forEach(function(input) {
+                    input.value = value;
+                });
+            }
+
+            function applySequentialTrackNumbers(startAt) {
+                var current = startAt;
+                document.querySelectorAll('input[name="bulkTrackNumber[]"]').forEach(function(input) {
+                    input.value = current;
+                    current++;
+                });
+            }
+
             var folderInput = document.getElementById('folderInput');
             var relativePathsInput = document.getElementById('relativePaths');
             var bulkFolderInfo = document.getElementById('bulkFolderInfo');
@@ -775,6 +1030,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
             var bulkFileCount = document.getElementById('bulkFileCount');
             var btnShowManualPath = document.getElementById('btnShowManualPath');
             var manualPathGroup = document.getElementById('manualPathGroup');
+            var detectMetaCheckbox = document.querySelector('input[name="detectMeta"]');
+            var btnApplyBulkFields = document.getElementById('btnApplyBulkFields');
+            var btnApplyTrackNumbers = document.getElementById('btnApplyTrackNumbers');
+            var bulkApplyArtist = document.getElementById('bulkApplyArtist');
+            var bulkApplyAlbum = document.getElementById('bulkApplyAlbum');
+            var bulkApplyGenre = document.getElementById('bulkApplyGenre');
+            var bulkApplyTrackStart = document.getElementById('bulkApplyTrackStart');
 
             if (folderInput) {
                 folderInput.addEventListener('change', function() {
@@ -782,6 +1044,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                     if (!files || files.length === 0) {
                         if (bulkFolderInfo) bulkFolderInfo.style.display = 'none';
                         if (relativePathsInput) relativePathsInput.value = '[]';
+                        renderBulkPreview([]);
                         return;
                     }
 
@@ -805,26 +1068,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
                     if (relativePathsInput) relativePathsInput.value = JSON.stringify(paths);
 
-                    // Check if no audio files found
                     if (audioCount === 0) {
                         alert('A pasta selecionada não contém ficheiros de áudio.\n\nFormatos suportados: MP3, WAV, OGG, FLAC, M4A, AAC, WMA');
                         folderInput.value = '';
                         if (bulkFolderInfo) bulkFolderInfo.style.display = 'none';
                         if (relativePathsInput) relativePathsInput.value = '[]';
+                        renderBulkPreview([]);
                         return;
                     }
 
-                    // Warn if too many files
                     if (audioCount > 100) {
                         if (!confirm('Foram detetados ' + audioCount + ' ficheiros de áudio.\n\nPor questões de performance, o limite é 100 ficheiros por importação.\n\nQueres continuar? (Apenas os primeiros 100 serão importados)')) {
                             folderInput.value = '';
                             if (bulkFolderInfo) bulkFolderInfo.style.display = 'none';
                             if (relativePathsInput) relativePathsInput.value = '[]';
+                            renderBulkPreview([]);
                             return;
                         }
                     }
 
-                    // Show folder info
                     if (bulkFolderInfo) {
                         bulkFolderInfo.style.display = '';
                         if (bulkFolderName) bulkFolderName.textContent = folderDetected || 'Pasta selecionada';
@@ -833,10 +1095,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                             bulkFileCount.textContent = displayCount + ' ficheiro(s) de áudio de ' + files.length + ' total';
                         }
                     }
+
+                    renderBulkPreview(files);
                 });
             }
 
-            // Manual path toggle
+            if (detectMetaCheckbox) {
+                detectMetaCheckbox.addEventListener('change', function() {
+                    if (folderInput && folderInput.files && folderInput.files.length > 0) {
+                        renderBulkPreview(folderInput.files);
+                    }
+                });
+            }
+
+            if (btnApplyBulkFields) {
+                btnApplyBulkFields.addEventListener('click', function() {
+                    if (bulkApplyArtist && bulkApplyArtist.value.trim() !== '') {
+                        applyBulkField('input[name="bulkArtist[]"]', bulkApplyArtist.value.trim());
+                    }
+                    if (bulkApplyAlbum && bulkApplyAlbum.value.trim() !== '') {
+                        applyBulkField('input[name="bulkAlbum[]"]', bulkApplyAlbum.value.trim());
+                    }
+                    if (bulkApplyGenre && bulkApplyGenre.value.trim() !== '') {
+                        applyBulkField('input[name="bulkGenre[]"]', bulkApplyGenre.value.trim());
+                    }
+                });
+            }
+
+            if (btnApplyTrackNumbers) {
+                btnApplyTrackNumbers.addEventListener('click', function() {
+                    var startAt = parseInt((bulkApplyTrackStart && bulkApplyTrackStart.value) || '1', 10);
+                    if (!startAt || startAt < 1) startAt = 1;
+                    applySequentialTrackNumbers(startAt);
+                });
+            }
+
+            setRandomBulkTip();
+
             if (btnShowManualPath) {
                 btnShowManualPath.addEventListener('click', function() {
                     if (manualPathGroup) {

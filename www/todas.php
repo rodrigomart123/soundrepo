@@ -9,7 +9,6 @@
 </head>
 <body>
 
-    <!-- SIDEBAR -->
     <nav class="sidebar">
         <div class="sidebar-top">
             <div class="nav-section">
@@ -57,8 +56,7 @@
         $viewTitle = htmlspecialchars($queryAlbum);
     }
 
-    // Build SQL with filters
-    $sql = "SELECT m.MusicId, m.Title, m.FilePath, m.DurationSeconds, m.Genre, a.Title as AlbumName, a.CoverPath, art.Name as ArtistName
+    $sql = "SELECT m.MusicId, m.Title, m.FilePath, m.DurationSeconds, m.Genre, m.TrackNumber, a.Title as AlbumName, a.CoverPath, art.Name as ArtistName
             FROM Musics m
             LEFT JOIN Albums a ON m.AlbumId = a.AlbumId
             LEFT JOIN Artists art ON a.ArtistId = art.ArtistId";
@@ -79,8 +77,7 @@
         $sql .= " WHERE " . implode(" AND ", $conditions);
     }
     
-    // Group logically by Artist -> Album
-    $sql .= " ORDER BY art.Name ASC, a.Title ASC, m.Title ASC";
+    $sql .= " ORDER BY art.Name ASC, a.Title ASC, CASE WHEN m.TrackNumber IS NULL OR m.TrackNumber = 0 THEN 1 ELSE 0 END ASC, m.TrackNumber ASC, m.Title ASC";
 
     try {
         $stmt = $pdo->prepare($sql);
@@ -88,14 +85,11 @@
         $tracks = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $hasMusics = count($tracks) > 0;
         
-        // Prepare grouped structure for everything
         $groupedTracks = [];
         if ($hasMusics) {
             foreach ($tracks as $track) {
                 $albumName = !empty($track['AlbumName']) ? $track['AlbumName'] : 'Outros / Singles';
                 $artistName = !empty($track['ArtistName']) ? $track['ArtistName'] : 'Artista Desconhecido';
-                
-                // Unique key to separate same-named albums from different artists
                 $groupKey = $artistName . " | " . $albumName;
 
                 if (!isset($groupedTracks[$groupKey])) {
@@ -116,7 +110,6 @@
         $groupedTracks = [];
     }
 
-    // Helper function to render table of tracks
     function renderTrackTable($trackList) {
         $html = '<table>
                     <thead>
@@ -139,6 +132,7 @@
             $cover = !empty($row['CoverPath']) ? str_replace('\\', '/', $row['CoverPath']) : '';
             $genero = htmlspecialchars($row['Genre'] ?? '', ENT_QUOTES);
             $id = $row['MusicId'];
+            $displayNumber = !empty($row['TrackNumber']) ? (int) $row['TrackNumber'] : $counter;
 
             $html .= "<tr class='track-row' 
                         data-id='$id' 
@@ -149,7 +143,7 @@
                         data-cover='$cover'
                         data-genre='$genero'>
                         <td style='text-align:center; position:relative;'>
-                            <span class='track-num'>$counter</span>
+                            <span class='track-num'>$displayNumber</span>
                             <i class='ph-fill ph-play play-icon'></i>
                         </td>
                         <td><span class='track-title'>$titulo</span></td>
@@ -164,17 +158,14 @@
     }
     ?>
 
-    <!-- MAIN VIEW -->
     <main class="main-view fade-in" id="mainContent">
         <div class="view-header">
             <h1 class="view-title"><?= $viewTitle ?></h1>
             <input type="text" id="searchPersistent" class="library-search" placeholder="Filtrar nesta lista..." autocomplete="off">
         </div>
 
-        <!-- Track List -->
         <div class="track-list-container" style="padding: 24px 32px;">
             <?php if($hasMusics): ?>
-                <!-- UNIVERSAL TREE VIEW (GROUP BY ALBUM) -->
                 <?php foreach($groupedTracks as $groupKey => $albumData): 
                     $coverStyle = !empty($albumData['CoverPath']) ? "background-image: url('".str_replace('\\', '/', htmlspecialchars($albumData['CoverPath']))."');" : "";
                 ?>
@@ -206,9 +197,7 @@
         </div>
     </main>
 
-    <!-- PLAYER BAR -->
     <footer class="player-bar">
-        <!-- Left: Track Info -->
         <div class="player-track-info">
             <div class="player-mini-art" id="footerArt">
                 <i class="ph ph-music-note"></i>
@@ -219,7 +208,6 @@
             </div>
         </div>
 
-        <!-- Center: Controls -->
         <div class="controls-center">
             <div class="buttons-row">
                 <button class="btn-control" id="btnShuffle" onclick="toggleShuffle()" title="Aleatório">
@@ -245,7 +233,6 @@
             </div>
         </div>
 
-        <!-- Right: Volume -->
         <div class="volume-controls">
             <i class="ph ph-speaker-high" id="volIcon" onclick="toggleMute()"></i>
             <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
@@ -254,7 +241,6 @@
 
     <audio id="audioPlayer" preload="metadata"></audio>
 
-    <!-- SEARCH OVERLAY -->
     <div class="search-overlay" id="searchOverlay" style="display:none;">
         <div class="search-container">
             <div class="search-bar-container">
@@ -263,20 +249,16 @@
                 <button class="search-bar-close" id="searchClose"><i class="ph ph-x"></i></button>
             </div>
             
-            <div class="search-results" id="searchResults">
-                <!-- Results will be injected here -->
-            </div>
+            <div class="search-results" id="searchResults"></div>
         </div>
     </div>
 
-    <!-- CONTEXT MENU -->
     <div class="context-menu" id="contextMenu" style="display:none;">
         <div class="context-menu-item" id="ctxAddQueue"><i class="ph ph-queue"></i> Adicionar à Fila</div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item ctx-danger" id="ctxDelete"><i class="ph ph-trash"></i> Apagar Música</div>
     </div>
 
-    <!-- BULK ACTIONS BAR -->
     <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
         <div class="bulk-actions-info">
             <span id="bulkSelectedCount">0</span> música(s) selecionada(s)

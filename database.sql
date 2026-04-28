@@ -1,18 +1,15 @@
--- SoundRepo Database Schema
--- Gestor de Biblioteca Musical Desktop
-
 CREATE DATABASE IF NOT EXISTS soundrepo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE soundrepo;
 
--- Tabela de Artistas
 CREATE TABLE IF NOT EXISTS Artists (
     ArtistId INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(255) NOT NULL,
+    ImagePath VARCHAR(500),
+    ImageLookupChecked TINYINT(1) NOT NULL DEFAULT 0,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_name (Name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tabela de Álbuns
 CREATE TABLE IF NOT EXISTS Albums (
     AlbumId INT AUTO_INCREMENT PRIMARY KEY,
     Title VARCHAR(255) NOT NULL,
@@ -25,7 +22,6 @@ CREATE TABLE IF NOT EXISTS Albums (
     INDEX idx_artist (ArtistId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tabela de Músicas
 CREATE TABLE IF NOT EXISTS Musics (
     MusicId INT AUTO_INCREMENT PRIMARY KEY,
     Title VARCHAR(255) NOT NULL,

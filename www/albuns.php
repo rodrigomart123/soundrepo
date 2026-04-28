@@ -9,7 +9,6 @@
 </head>
 <body>
 
-    <!-- SIDEBAR -->
     <nav class="sidebar">
         <div class="sidebar-top">
             <div class="nav-section">
@@ -61,7 +60,6 @@
     }
     ?>
 
-    <!-- MAIN VIEW -->
     <main class="main-view fade-in" id="mainContent">
         <div class="view-header">
             <h1 class="view-title">Álbuns</h1>
@@ -97,7 +95,6 @@
         </div>
 
         <script>
-            // Inline script to handle local filtering (must be inside <main> to execute via SPA)
             (function() {
                 const searchInput = document.getElementById('albumSearch');
                 if (searchInput) {
@@ -114,9 +111,7 @@
         </script>
     </main>
 
-    <!-- PLAYER BAR -->
     <footer class="player-bar">
-        <!-- Left: Track Info -->
         <div class="player-track-info">
             <div class="player-mini-art" id="footerArt">
                 <i class="ph ph-music-note"></i>
@@ -127,7 +122,6 @@
             </div>
         </div>
 
-        <!-- Center: Controls -->
         <div class="controls-center">
             <div class="buttons-row">
                 <button class="btn-control" id="btnShuffle" onclick="toggleShuffle()" title="Aleatório">
@@ -153,7 +147,6 @@
             </div>
         </div>
 
-        <!-- Right: Volume -->
         <div class="volume-controls">
             <i class="ph ph-speaker-high" id="volIcon" onclick="toggleMute()"></i>
             <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
@@ -162,7 +155,6 @@
 
     <audio id="audioPlayer" preload="metadata"></audio>
 
-    <!-- SEARCH OVERLAY -->
     <div class="search-overlay" id="searchOverlay" style="display:none;">
         <div class="search-container">
             <div class="search-bar-container">
@@ -171,20 +163,16 @@
                 <button class="search-bar-close" id="searchClose"><i class="ph ph-x"></i></button>
             </div>
             
-            <div class="search-results" id="searchResults">
-                <!-- Results will be injected here -->
-            </div>
+            <div class="search-results" id="searchResults"></div>
         </div>
     </div>
 
-    <!-- CONTEXT MENU -->
     <div class="context-menu" id="contextMenu" style="display:none;">
         <div class="context-menu-item" id="ctxAddQueue"><i class="ph ph-queue"></i> Adicionar à Fila</div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item ctx-danger" id="ctxDelete"><i class="ph ph-trash"></i> Apagar Música</div>
     </div>
 
-    <!-- BULK ACTIONS BAR -->
     <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
         <div class="bulk-actions-info">
             <span id="bulkSelectedCount">0</span> música(s) selecionada(s)

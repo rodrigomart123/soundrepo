@@ -1,4 +1,3 @@
-/* === ADVANCED SEARCH OVERLAY === */
 .search-overlay {
     position: fixed;
     top: 0;
@@ -94,10 +93,7 @@
 }
 
 .search-results {
-    /* Removed max-height and overflow to let the parent overlay handle scrolling */
 }
-
-/* Removed max-height and overflow to let the parent overlay handle scrolling */
 
 .search-section {
     margin-bottom: 32px;
@@ -245,7 +241,6 @@
     }
     
     .search-results {
-        /* Removed max-height */
     }
     
     .search-card {
