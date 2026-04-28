@@ -1521,27 +1521,43 @@ body.hide-right-panel .right-panel {
 
 .bulk-actions-bar {
     position: fixed;
-    bottom: var(--player-height);
-    left: var(--sidebar-width);
-    right: var(--right-panel-width);
+    bottom: calc(var(--player-height) + 20px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    min-width: 300px;
+    max-width: calc(100% - 40px);
     background: var(--bg-surface-2);
-    border-top: 1px solid var(--border-light);
-    padding: 12px 24px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 10px 20px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    z-index: 90;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
-    transition: transform 0.3s ease;
+    justify-content: center;
+    gap: 20px;
+    z-index: 999;
+    box-shadow: var(--shadow-lg), 0 0 20px rgba(0,0,0,0.4);
+    animation: slideUpFloating 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUpFloating {
+    from { 
+        opacity: 0;
+        transform: translate(-50%, 40px);
+    }
+    to { 
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
 }
 
 .bulk-actions-info {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
+    border-right: 1px solid var(--border);
+    padding-right: 20px;
 }
 
 .bulk-actions-info span {
@@ -1551,35 +1567,58 @@ body.hide-right-panel .right-panel {
 .bulk-actions-buttons {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
 }
 
 .bulk-action-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: 8px 14px;
     background: var(--bg-hover);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     color: var(--text-primary);
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     font-family: inherit;
     cursor: pointer;
     transition: var(--transition);
     white-space: nowrap;
 }
 
-@media (max-width: 1100px) {
+.bulk-action-btn:hover {
+    background: var(--bg-active);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.bulk-action-btn i {
+    font-size: 16px;
+}
+
+.bulk-action-danger {
+    color: #ff4d4d;
+}
+
+.bulk-action-danger:hover {
+    background: rgba(255, 77, 77, 0.1);
+    border-color: #ff4d4d;
+}
+
+@media (max-width: 800px) {
     .bulk-actions-bar {
-        padding: 10px 16px;
+        gap: 12px;
+        padding: 8px 16px;
+    }
+    .bulk-actions-info {
+        padding-right: 12px;
+        font-size: 12px;
     }
     .bulk-action-btn span {
-        display: none; /* Esconde o texto, deixa só o ícone em telas pequenas */
+        display: none;
     }
     .bulk-action-btn {
-        padding: 8px 10px;
+        padding: 8px;
     }
 }
 
