@@ -1566,6 +1566,60 @@ body.hide-right-panel .right-panel {
     padding-bottom: 32px;
 }
 
+/* === ALBUM GROUPING (ARTIST VIEW) === */
+.album-group {
+    margin-bottom: 40px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+}
+
+.album-group-header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px 32px;
+    background: var(--bg-surface-2);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.album-group-cover {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-md);
+    background-color: var(--bg-main);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+}
+
+.album-group-cover i {
+    font-size: 40px;
+    color: var(--text-tertiary);
+}
+
+.album-group-info h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+}
+
+.album-group-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.album-group table {
+    margin-bottom: 0;
+}
+
 .library-card {
     background: var(--bg-surface);
     border: 1px solid var(--border-light);
