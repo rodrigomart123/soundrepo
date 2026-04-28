@@ -163,8 +163,93 @@
         </div>
     </main>
 
-    <?php include 'player.php'; ?>
-    <?php include 'search-overlay.php'; ?>
+    <!-- PLAYER BAR -->
+    <footer class="player-bar">
+        <!-- Left: Track Info -->
+        <div class="player-track-info">
+            <div class="player-mini-art" id="footerArt">
+                <i class="ph ph-music-note"></i>
+            </div>
+            <div class="player-track-text">
+                <div class="player-track-title" id="footerTitle">SoundRepo</div>
+                <div class="player-track-artist" id="footerArtist">Pronto</div>
+            </div>
+        </div>
+
+        <!-- Center: Controls -->
+        <div class="controls-center">
+            <div class="buttons-row">
+                <button class="btn-control" id="btnShuffle" onclick="toggleShuffle()" title="Aleatório">
+                    <i class="ph ph-shuffle"></i>
+                </button>
+                <button class="btn-control" id="btnPrev" onclick="prevTrack()" title="Anterior">
+                    <i class="ph-fill ph-skip-back"></i>
+                </button>
+                <button class="btn-main" id="btnPlay" onclick="togglePlay()" title="Play / Pause">
+                    <i class="ph-fill ph-play" id="playIcon"></i>
+                </button>
+                <button class="btn-control" id="btnNext" onclick="nextTrack()" title="Próxima">
+                    <i class="ph-fill ph-skip-forward"></i>
+                </button>
+                <button class="btn-control" id="btnRepeat" onclick="toggleRepeat()" title="Repetir">
+                    <i class="ph ph-repeat"></i>
+                </button>
+            </div>
+            <div class="progress-row">
+                <span class="time" id="currentTime">0:00</span>
+                <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.1">
+                <span class="time" id="totalTime">0:00</span>
+            </div>
+        </div>
+
+        <!-- Right: Volume -->
+        <div class="volume-controls">
+            <i class="ph ph-speaker-high" id="volIcon" onclick="toggleMute()"></i>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+        </div>
+    </footer>
+
+    <audio id="audioPlayer" preload="metadata"></audio>
+
+    <!-- SEARCH OVERLAY -->
+    <div class="search-overlay" id="searchOverlay" style="display:none;">
+        <div class="search-container">
+            <div class="search-bar-container">
+                <i class="ph ph-magnifying-glass search-bar-icon"></i>
+                <input type="text" id="searchInput" class="search-bar-input" placeholder="Pesquisar músicas, artistas, álbuns..." autocomplete="off">
+                <button class="search-bar-close" id="searchClose"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <div class="search-results" id="searchResults">
+                <!-- Results will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTEXT MENU -->
+    <div class="context-menu" id="contextMenu" style="display:none;">
+        <div class="context-menu-item" id="ctxAddQueue"><i class="ph ph-queue"></i> Adicionar à Fila</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item ctx-danger" id="ctxDelete"><i class="ph ph-trash"></i> Apagar Música</div>
+    </div>
+
+    <!-- BULK ACTIONS BAR -->
+    <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
+        <div class="bulk-actions-info">
+            <span id="bulkSelectedCount">0</span> música(s) selecionada(s)
+        </div>
+        <div class="bulk-actions-buttons">
+            <button class="bulk-action-btn" id="bulkAddQueue">
+                <i class="ph ph-queue"></i> <span>Adicionar à Fila</span>
+            </button>
+            <button class="bulk-action-btn bulk-action-danger" id="bulkDelete">
+                <i class="ph ph-trash"></i> <span>Apagar</span>
+            </button>
+            <button class="bulk-action-btn" id="bulkCancel">
+                <i class="ph ph-x"></i> <span>Cancelar</span>
+            </button>
+        </div>
+    </div>
 
     <script src="js/spa.js"></script>
     <script src="js/player.js"></script>
