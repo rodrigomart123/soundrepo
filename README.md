@@ -1,92 +1,62 @@
 # SoundRepo
 
-Gestor de Biblioteca Musical Desktop desenvolvido com PHP Desktop (Chromium Embedded Framework) e MySQL.
+Gestor de Biblioteca Musical Desktop desenvolvido para o Módulo 16 (Projeto de Software) do curso TGPSI.
 
-## Características
+## Contexto
 
-- Interface moderna inspirada no Spotify
-- Gestão completa de músicas, álbuns e artistas
-- Player de áudio integrado
-- Filtros por género, artista e álbum
-- Upload de capas de álbuns
-- Base de dados MySQL local
+Este projeto foi criado como trabalho final da disciplina PSI A. O objetivo era desenvolver uma aplicação desktop funcional que demonstrasse competências em programação, bases de dados relacionais e design de interfaces.
 
-## Requisitos
+Inicialmente pensei em fazer em C# WinForms, mas para conseguir um visual moderno (tipo Spotify) acabei por usar PHP Desktop - basicamente um executável Windows que corre uma aplicação web localmente.
 
-- Windows (testado no Windows 10/11)
-- MySQL Server (ou XAMPP/WAMP)
-- PHP 8.3+ (incluído no pacote PHP Desktop)
+## O que faz
+
+É um gestor de música completo onde podes:
+- Importar músicas (uma a uma ou pasta inteira)
+- Auto-preencher metadados via iTunes API
+- Organizar por artista/álbum/género
+- Reproduzir com player customizado (shuffle, repeat, fila)
+- Navegar sem parar a música (SPA com router JS)
+
+## Stack Técnica
+
+- **Backend**: PHP 8.3 com PDO
+- **Base de Dados**: MySQL (3NF - Artists → Albums → Musics)
+- **Frontend**: HTML5, CSS3 (Grid/Flexbox, variáveis CSS), JavaScript Vanilla
+- **Desktop**: PHP Desktop Chrome (CEF)
+- **APIs**: iTunes Search API para metadados
 
 ## Instalação
 
-### 1. Configurar a Base de Dados
+1. Importa o `database.sql` no MySQL (via phpMyAdmin ou linha de comandos)
+2. Se não usas `root` sem password, edita `www/db.php`
+3. Executa `SoundRepo.exe`
 
-Certifique-se de que o MySQL está a correr e execute o ficheiro `database.sql`:
+Pronto. A app abre numa janela desktop e conecta-se ao MySQL local.
 
-```bash
-mysql -u root -p < database.sql
-```
-
-Ou importe manualmente através do phpMyAdmin/MySQL Workbench.
-
-### 2. Configurar Credenciais (Opcional)
-
-Se as suas credenciais MySQL não forem as padrão (root sem senha), edite o ficheiro `www/db.php`:
-
-```php
-$user = 'root';     // O teu utilizador MySQL
-$pass = '';         // A tua palavra-passe MySQL
-```
-
-### 3. Executar a Aplicação
-
-Simplesmente execute o ficheiro `SoundRepo.exe`.
-
-A aplicação irá:
-- Iniciar um servidor PHP local
-- Abrir a interface numa janela desktop
-- Conectar-se à base de dados MySQL
-
-## Estrutura do Projeto
+## Estrutura
 
 ```
 soundrepo/
-├── SoundRepo.exe          # Executável principal (PHP Desktop)
-├── database.sql           # Schema da base de dados
-├── settings.json          # Configurações da aplicação
-├── php/                   # PHP 8.3 runtime
-└── www/                   # Código-fonte da aplicação
-    ├── index.php          # Página principal
-    ├── adicionar.php      # Formulário de adicionar músicas
-    ├── api.php            # API REST (delete, etc)
-    ├── db.php             # Configuração da base de dados
-    ├── css/               # Estilos
-    ├── js/                # JavaScript
-    ├── covers/            # Capas de álbuns (gerado)
-    └── musicas/           # Ficheiros de áudio (gerado)
+├── SoundRepo.exe       # Executável
+├── database.sql        # Schema da BD
+├── php/                # Runtime PHP 8.3
+└── www/                # Código-fonte
+    ├── index.php       # Página principal
+    ├── adicionar.php   # Form de upload
+    ├── api.php         # Endpoints (delete, etc)
+    ├── db.php          # Conexão MySQL
+    └── css/js/         # Frontend
 ```
 
-## Utilização
+## Features Técnicas
 
-1. **Adicionar Música**: Clique em "Adicionar Música" na sidebar
-2. **Reproduzir**: Clique duas vezes numa música na lista
-3. **Filtrar**: Use os filtros de Género, Artista e Álbum
-4. **Eliminar**: Clique no ícone de lixo ao lado da música
+- **SPA Router**: Navegação AJAX sem recarregar (música continua a tocar)
+- **Smart Upload**: Extrai "Artista - Titulo" do nome do ficheiro e consulta iTunes API
+- **Bulk Import**: Importa pastas inteiras com `webkitdirectory`
+- **LocalStorage**: Guarda estado do player (música atual, fila, posição)
+- **Context Menu**: Botão direito para adicionar à fila ou apagar
+- **Column Browser**: Filtros dinâmicos (género/artista/álbum)
 
-## Tecnologias
+## Notas
 
-- **Frontend**: HTML5, CSS3, JavaScript
-- **Backend**: PHP 8.3
-- **Base de Dados**: MySQL 8.0+
-- **Desktop**: PHP Desktop (CEF - Chromium Embedded Framework)
-- **Ícones**: Phosphor Icons
-
-## Notas de Desenvolvimento
-
-- As pastas `covers/` e `musicas/` são criadas automaticamente
-- Os ficheiros de áudio e capas são armazenados localmente
-- A base de dados usa UTF-8 (utf8mb4) para suportar caracteres especiais
-
-## Licença
-
-Este projeto é de código aberto. Sinta-se livre para usar e modificar.
+As pastas `covers/` e `musicas/` são criadas automaticamente quando adicionas a primeira música.
