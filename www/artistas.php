@@ -98,6 +98,22 @@
             </div>
             <?php endif; ?>
         </div>
+
+        <script>
+            // Inline script to handle local filtering (must be inside <main> to execute via SPA)
+            (function() {
+                const searchInput = document.getElementById('artistSearch');
+                if (searchInput) {
+                    searchInput.addEventListener('input', (e) => {
+                        const term = e.target.value.trim().toLowerCase();
+                        document.querySelectorAll('.artist-card').forEach(card => {
+                            const name = card.dataset.name || '';
+                            card.style.display = name.includes(term) ? '' : 'none';
+                        });
+                    });
+                }
+            })();
+        </script>
     </main>
 
     <!-- PLAYER BAR -->
@@ -187,21 +203,5 @@
             </button>
         </div>
     </div>
-
-    <script src="js/spa.js"></script>
-    <script src="js/player.js"></script>
-    <script src="js/queue.js"></script>
-    <script src="js/search.js"></script>
-    <script>
-        // Inline script to handle local filtering
-        document.getElementById('artistSearch')?.addEventListener('input', (e) => {
-            const term = e.target.value.trim().toLowerCase();
-            document.querySelectorAll('.artist-card').forEach(card => {
-                const name = card.dataset.name || '';
-                card.style.display = name.includes(term) ? '' : 'none';
-            });
-        });
-    </script>
-
 </body>
 </html>
