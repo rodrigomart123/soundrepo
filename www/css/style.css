@@ -1507,3 +1507,102 @@ body.hide-right-panel .right-panel {
         transform: translateY(0);
     }
 }
+
+/* === MULTI-SELECT & BULK ACTIONS === */
+.track-checkbox-header,
+.track-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.track-checkbox {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.track-row:hover .track-checkbox,
+.track-row.selected .track-checkbox {
+    opacity: 1;
+}
+
+.track-row.selected {
+    background: var(--accent-dim) !important;
+}
+
+.track-row:hover .track-num {
+    opacity: 0;
+}
+
+.track-select-cell {
+    position: relative;
+}
+
+.bulk-actions-bar {
+    position: fixed;
+    bottom: var(--player-height);
+    left: var(--sidebar-width);
+    right: var(--right-panel-width);
+    background: var(--bg-surface-2);
+    border-top: 1px solid var(--border-light);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 90;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+}
+
+.bulk-actions-info {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.bulk-actions-info span {
+    color: var(--accent-bright);
+}
+
+.bulk-actions-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.bulk-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.bulk-action-btn:hover {
+    background: var(--bg-active);
+    border-color: var(--border-light);
+}
+
+.bulk-action-btn i {
+    font-size: 16px;
+}
+
+.bulk-action-danger {
+    color: #ef4444;
+}
+
+.bulk-action-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+}

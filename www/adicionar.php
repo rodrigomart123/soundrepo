@@ -1,5 +1,6 @@
 ﻿<?php
 require 'db.php';
+require 'extract_cover.php';
 
 $mensagem = "";
 $erro = "";
@@ -258,40 +259,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                     $trackArtist = 'Desconhecido';
                     $trackAlbum = 'Desconhecido';
 
-                    if ($detectMeta) {
-                        // Clean common tags: (Official Video), [Lyrics], etc.
-                        $cleaned = preg_replace('/\s*[\(\[][^\)\]]*[\)\]]\s*/', ' ', $baseName);
-                        $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
+                    // Clean common tags: (Official Video), [Lyrics], etc.
+                    $cleaned = preg_replace('/\s*[\(\[][^\)\]]*[\)\]]\s*/', ' ', $baseName);
+                    $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
 
-                        // Try "Artist - Title" pattern
-                        $parts = explode(' - ', $cleaned);
-                        if (count($parts) >= 2) {
-                            $trackArtist = trim($parts[0]);
-                            $trackTitle = trim(implode(' - ', array_slice($parts, 1)));
+                    // ALWAYS try to parse "Artist - Title" pattern
+                    $parts = explode(' - ', $cleaned);
+                    if (count($parts) >= 2) {
+                        $trackArtist = trim($parts[0]);
+                        $trackTitle = trim(implode(' - ', array_slice($parts, 1)));
+                    } else {
+                        // Try "Artist_-_Title" or "Artist–Title" (en-dash)
+                        $altParts = preg_split('/\s*[–—]\s*|\s*_-_\s*/', $cleaned, 2);
+                        if (count($altParts) >= 2) {
+                            $trackArtist = trim($altParts[0]);
+                            $trackTitle = trim($altParts[1]);
                         } else {
-                            // Try "Artist_-_Title" or "Artist–Title" (en-dash)
-                            $altParts = preg_split('/\s*[–—]\s*|\s*_-_\s*/', $cleaned, 2);
-                            if (count($altParts) >= 2) {
-                                $trackArtist = trim($altParts[0]);
-                                $trackTitle = trim($altParts[1]);
-                            } else {
-                                $trackTitle = $cleaned;
-                            }
+                            $trackTitle = $cleaned;
                         }
+                    }
 
-                        // Remove track numbers from title (e.g., "01 Song Name" or "01. Song Name")
-                        $trackTitle = preg_replace('/^\d{1,3}[.\-\s]+/', '', $trackTitle);
-                        $trackTitle = trim($trackTitle);
+                    // Remove track numbers from title (e.g., "01 Song Name" or "01. Song Name")
+                    $trackTitle = preg_replace('/^\d{1,3}[.\-\s]+/', '', $trackTitle);
+                    $trackTitle = trim($trackTitle);
 
+                    if ($detectMeta) {
                         // Detect album from folder name (webkitdirectory or parent folder)
                         if ($folderName && !preg_match('/^(music|musica|songs|downloads|desktop)$/i', $folderName)) {
                             $trackAlbum = $folderName;
-                        }
-                    } else {
-                        // Non-detect mode: just clean filename
-                        $parts = explode(' - ', $baseName);
-                        if (count($parts) >= 2) {
-                            $trackTitle = trim(implode(' - ', array_slice($parts, 1)));
                         }
                     }
 
@@ -305,6 +300,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                         $albumId = $getAlbumId($trackAlbum, $artistId);
                         $stmt = $pdo->prepare("INSERT INTO Musics (Title, FilePath, AlbumId) VALUES (?, ?, ?)");
                         $stmt->execute([$trackTitle, $destino, $albumId]);
+                        
+                        // Try to extract embedded cover art
+                        $coverPath = extractEmbeddedCover($destino, $albumId);
+                        if ($coverPath) {
+                            // Update album with extracted cover
+                            $stmt = $pdo->prepare("UPDATE Albums SET CoverPath = ? WHERE AlbumId = ? AND (CoverPath IS NULL OR CoverPath = '')");
+                            $stmt->execute([$coverPath, $albumId]);
+                        }
+                        
                         $imported++;
                         $processedCount++;
                     } catch (Exception $e) {

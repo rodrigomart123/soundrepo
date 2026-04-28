@@ -142,7 +142,9 @@ if(file_exists('db.php')) {
             <table>
                 <thead>
                     <tr>
-                        <th style="width:50px; text-align:center;">#</th>
+                        <th style="width:50px; text-align:center;">
+                            <input type="checkbox" id="selectAllTracks" class="track-checkbox-header">
+                        </th>
                         <th>T&iacute;tulo</th>
                         <th>Artista</th>
                         <th>&Aacute;lbum</th>
@@ -172,11 +174,11 @@ if(file_exists('db.php')) {
                                   data-artist='$artista' 
                                   data-album='$album'
                                   data-cover='$cover'
-                                  data-genre='$genero'
-                                  onclick=\"playTrack(this)\">";
-                        echo "  <td style='text-align:center; position:relative;'>";
+                                  data-genre='$genero'>";
+                        echo "  <td style='text-align:center; position:relative;' class='track-select-cell'>";
+                        echo "    <input type='checkbox' class='track-checkbox' data-id='$id'>";
                         echo "    <span class='track-num'>$counter</span>";
-                        echo "    <i class='ph-fill ph-play play-icon'></i>";
+                        echo "    <i class='ph-fill ph-play play-icon' onclick='playTrack(this.closest(\".track-row\"))'></i>";
                         echo "  </td>";
                         echo "  <td><span class='track-title'>$titulo</span></td>";
                         echo "  <td>$artista</td>";
@@ -275,9 +277,27 @@ if(file_exists('db.php')) {
 
     <!-- CONTEXT MENU -->
     <div class="context-menu" id="contextMenu" style="display:none;">
-        <div class="context-menu-item" id="ctxAddQueue"><i class="ph ph-queue"></i> Adicionar &agrave; Fila</div>
+        <div class="context-menu-item" id="ctxAddQueue"><i class="ph ph-queue"></i> Adicionar à Fila</div>
         <div class="context-menu-divider"></div>
-        <div class="context-menu-item ctx-danger" id="ctxDelete"><i class="ph ph-trash"></i> Apagar M&uacute;sica</div>
+        <div class="context-menu-item ctx-danger" id="ctxDelete"><i class="ph ph-trash"></i> Apagar Música</div>
+    </div>
+
+    <!-- BULK ACTIONS BAR -->
+    <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
+        <div class="bulk-actions-info">
+            <span id="bulkSelectedCount">0</span> música(s) selecionada(s)
+        </div>
+        <div class="bulk-actions-buttons">
+            <button class="bulk-action-btn" id="bulkAddQueue">
+                <i class="ph ph-queue"></i> Adicionar à Fila
+            </button>
+            <button class="bulk-action-btn bulk-action-danger" id="bulkDelete">
+                <i class="ph ph-trash"></i> Apagar
+            </button>
+            <button class="bulk-action-btn" id="bulkCancel">
+                <i class="ph ph-x"></i> Cancelar
+            </button>
+        </div>
     </div>
 
     <script>
@@ -297,6 +317,8 @@ if(file_exists('db.php')) {
     let repeatMode = 0; // 0=off, 1=all, 2=one
     let currentTrackEl = null;
     let playingTrackId = null;
+    let selectedTracks = new Set(); // Track selection
+    let lastSelectedIndex = -1; // For shift-click selection
 
     // === TRACK LIST ===
     function getAllTracks() {
@@ -967,6 +989,222 @@ if(file_exists('db.php')) {
         if (sp) sp.value = currentSearchQuery;
         updateSearchClearBtn();
         if (currentSearchQuery) applyAllFilters();
+    }
+
+    // ========================
+    // MULTI-SELECT FEATURE
+    // ========================
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const bulkSelectedCount = document.getElementById('bulkSelectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllTracks');
+    const bulkAddQueueBtn = document.getElementById('bulkAddQueue');
+    const bulkDeleteBtn = document.getElementById('bulkDelete');
+    const bulkCancelBtn = document.getElementById('bulkCancel');
+
+    // Handle checkbox clicks
+    document.addEventListener('click', (e) => {
+        const checkbox = e.target.closest('.track-checkbox');
+        if (!checkbox) return;
+        
+        e.stopPropagation();
+        const row = checkbox.closest('.track-row');
+        const trackId = checkbox.dataset.id;
+        const allRows = getAllTracks();
+        const currentIndex = allRows.indexOf(row);
+        
+        if (e.shiftKey && lastSelectedIndex !== -1) {
+            // Shift-click: select range
+            const start = Math.min(lastSelectedIndex, currentIndex);
+            const end = Math.max(lastSelectedIndex, currentIndex);
+            
+            for (let i = start; i <= end; i++) {
+                const r = allRows[i];
+                const cb = r.querySelector('.track-checkbox');
+                const id = cb.dataset.id;
+                
+                if (checkbox.checked) {
+                    selectedTracks.add(id);
+                    cb.checked = true;
+                    r.classList.add('selected');
+                } else {
+                    selectedTracks.delete(id);
+                    cb.checked = false;
+                    r.classList.remove('selected');
+                }
+            }
+        } else if (e.ctrlKey || e.metaKey) {
+            // Ctrl-click: toggle individual
+            if (checkbox.checked) {
+                selectedTracks.add(trackId);
+                row.classList.add('selected');
+            } else {
+                selectedTracks.delete(trackId);
+                row.classList.remove('selected');
+            }
+        } else {
+            // Normal click: toggle individual
+            if (checkbox.checked) {
+                selectedTracks.add(trackId);
+                row.classList.add('selected');
+            } else {
+                selectedTracks.delete(trackId);
+                row.classList.remove('selected');
+            }
+        }
+        
+        lastSelectedIndex = currentIndex;
+        updateBulkActions();
+    });
+
+    // Select all checkbox
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', () => {
+            const allRows = getAllTracks();
+            selectedTracks.clear();
+            
+            allRows.forEach(row => {
+                const cb = row.querySelector('.track-checkbox');
+                const id = cb.dataset.id;
+                
+                if (selectAllCheckbox.checked) {
+                    cb.checked = true;
+                    row.classList.add('selected');
+                    selectedTracks.add(id);
+                } else {
+                    cb.checked = false;
+                    row.classList.remove('selected');
+                }
+            });
+            
+            updateBulkActions();
+        });
+    }
+
+    function updateBulkActions() {
+        const count = selectedTracks.size;
+        
+        if (count > 0) {
+            bulkActionsBar.style.display = 'flex';
+            bulkSelectedCount.textContent = count;
+        } else {
+            bulkActionsBar.style.display = 'none';
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        }
+    }
+
+    function clearSelection() {
+        selectedTracks.clear();
+        getAllTracks().forEach(row => {
+            const cb = row.querySelector('.track-checkbox');
+            if (cb) cb.checked = false;
+            row.classList.remove('selected');
+        });
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        updateBulkActions();
+    }
+
+    // Bulk actions
+    if (bulkAddQueueBtn) {
+        bulkAddQueueBtn.addEventListener('click', () => {
+            const allRows = getAllTracks();
+            let added = 0;
+            
+            selectedTracks.forEach(id => {
+                const row = allRows.find(r => r.dataset.id === id);
+                if (row) {
+                    addToQueue(row);
+                    added++;
+                }
+            });
+            
+            showToast(`${added} música(s) adicionada(s) à fila`);
+            clearSelection();
+        });
+    }
+
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', () => {
+            const count = selectedTracks.size;
+            
+            showConfirm(
+                'Apagar Músicas',
+                `Tens a certeza que queres apagar ${count} música(s)? Esta ação é irreversível.`,
+                () => {
+                    const ids = Array.from(selectedTracks);
+                    let deleted = 0;
+                    let failed = 0;
+                    
+                    // Delete sequentially
+                    const deleteNext = (index) => {
+                        if (index >= ids.length) {
+                            showToast(`${deleted} música(s) apagada(s)` + (failed > 0 ? ` (${failed} falharam)` : ''));
+                            clearSelection();
+                            return;
+                        }
+                        
+                        const id = ids[index];
+                        
+                        fetch('api.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'action=delete&id=' + encodeURIComponent(id)
+                        })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.ok) {
+                                const row = getAllTracks().find(r => r.dataset.id === id);
+                                if (row) {
+                                    // If playing this track, stop
+                                    if (playingTrackId == id) {
+                                        audio.pause();
+                                        audio.src = '';
+                                        playingTrackId = null;
+                                        currentTrackEl = null;
+                                        resetPlayerUI();
+                                    }
+                                    row.remove();
+                                }
+                                deleted++;
+                            } else {
+                                failed++;
+                            }
+                            deleteNext(index + 1);
+                        })
+                        .catch(() => {
+                            failed++;
+                            deleteNext(index + 1);
+                        });
+                    };
+                    
+                    deleteNext(0);
+                }
+            );
+        });
+    }
+
+    if (bulkCancelBtn) {
+        bulkCancelBtn.addEventListener('click', clearSelection);
+    }
+
+    function resetPlayerUI() {
+        document.getElementById('npTitle').textContent = 'SoundRepo';
+        document.getElementById('npArtist').textContent = 'Seleciona uma música';
+        document.getElementById('npAlbum').textContent = '';
+        document.getElementById('footerTitle').textContent = 'SoundRepo';
+        document.getElementById('footerArtist').textContent = 'Pronto';
+        
+        npArt.style.backgroundImage = 'none';
+        npArt.style.background = '';
+        npArt.querySelector('.art-icon').style.display = '';
+        npArtInitial.style.display = 'none';
+        
+        footerArt.style.backgroundImage = 'none';
+        footerArt.style.background = '';
+        footerArt.innerHTML = '<i class="ph ph-music-note"></i>';
+        footerArt.classList.remove('has-track');
+        
+        updatePlayState(false);
+        localStorage.removeItem('sr_state');
     }
 
     // ========================
