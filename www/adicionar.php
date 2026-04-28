@@ -187,8 +187,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
         if (empty($filesToImport)) {
             $erro = "Nenhum ficheiro de áudio encontrado na pasta selecionada.";
         } else {
-            $imported = 0;
-            $failed = 0;
+            // Limit to prevent timeout (max 100 files per batch)
+            if (count($filesToImport) > 100) {
+                $erro = "Demasiados ficheiros (" . count($filesToImport) . "). Máximo: 100 ficheiros por importação.";
+            } else {
+                $imported = 0;
+                $failed = 0;
 
             // Cache for artist/album IDs to avoid repeated queries
             $artistCache = [];
@@ -232,7 +236,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
             if (!is_dir('musicas')) mkdir('musicas', 0755, true);
 
+            // Process files with progress feedback
+            $processedCount = 0;
+            $maxFiles = min(count($filesToImport), 100); // Hard limit to 100
+
             foreach ($filesToImport as $fileInfo) {
+                if ($processedCount >= $maxFiles) break; // Stop at limit
+                
                 $f = $fileInfo['name'];
                 $sanitized = preg_replace('/[^a-zA-Z0-9._\-\s]/', '', $f);
                 $destino = 'musicas/' . $sanitized;
@@ -296,16 +306,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                         $stmt = $pdo->prepare("INSERT INTO Musics (Title, FilePath, AlbumId) VALUES (?, ?, ?)");
                         $stmt->execute([$trackTitle, $destino, $albumId]);
                         $imported++;
+                        $processedCount++;
                     } catch (Exception $e) {
                         $failed++;
+                        $processedCount++;
                     }
                 } else {
                     $failed++;
+                    $processedCount++;
                 }
             }
 
-            $mensagem = "$imported música(s) importada(s) com sucesso!";
-            if ($failed > 0) $mensagem .= " ($failed falharam)";
+                $mensagem = "$imported música(s) importada(s) com sucesso!";
+                if ($failed > 0) $mensagem .= " ($failed falharam)";
+            }
         }
     }
 }
@@ -793,11 +807,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
                     if (relativePathsInput) relativePathsInput.value = JSON.stringify(paths);
 
+                    // Check if no audio files found
+                    if (audioCount === 0) {
+                        alert('A pasta selecionada não contém ficheiros de áudio.\n\nFormatos suportados: MP3, WAV, OGG, FLAC, M4A, AAC, WMA');
+                        folderInput.value = '';
+                        if (bulkFolderInfo) bulkFolderInfo.style.display = 'none';
+                        if (relativePathsInput) relativePathsInput.value = '[]';
+                        return;
+                    }
+
+                    // Warn if too many files
+                    if (audioCount > 100) {
+                        if (!confirm('Foram detetados ' + audioCount + ' ficheiros de áudio.\n\nPor questões de performance, o limite é 100 ficheiros por importação.\n\nQueres continuar? (Apenas os primeiros 100 serão importados)')) {
+                            folderInput.value = '';
+                            if (bulkFolderInfo) bulkFolderInfo.style.display = 'none';
+                            if (relativePathsInput) relativePathsInput.value = '[]';
+                            return;
+                        }
+                    }
+
                     // Show folder info
                     if (bulkFolderInfo) {
                         bulkFolderInfo.style.display = '';
                         if (bulkFolderName) bulkFolderName.textContent = folderDetected || 'Pasta selecionada';
-                        if (bulkFileCount) bulkFileCount.textContent = audioCount + ' ficheiro(s) de áudio de ' + files.length + ' total';
+                        if (bulkFileCount) {
+                            var displayCount = audioCount > 100 ? '100 (limite)' : audioCount;
+                            bulkFileCount.textContent = displayCount + ' ficheiro(s) de áudio de ' + files.length + ' total';
+                        }
                     }
                 });
             }
