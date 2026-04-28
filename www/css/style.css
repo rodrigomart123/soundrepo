@@ -1522,42 +1522,27 @@ body.hide-right-panel .right-panel {
 .bulk-actions-bar {
     position: fixed;
     bottom: calc(var(--player-height) + 20px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: auto;
-    min-width: 300px;
-    max-width: calc(100% - 40px);
-    background: var(--bg-surface-2);
+    left: calc(var(--sidebar-width) + 20px);
+    right: calc(var(--right-panel-width) + 20px);
+    background: #181818;
     border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    padding: 10px 20px;
+    border-radius: var(--radius-md);
+    padding: 14px 24px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     gap: 20px;
     z-index: 999;
-    box-shadow: var(--shadow-lg), 0 0 20px rgba(0,0,0,0.4);
-    animation: slideUpFloating 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes slideUpFloating {
-    from { 
-        opacity: 0;
-        transform: translate(-50%, 40px);
-    }
-    to { 
-        opacity: 1;
-        transform: translate(-50%, 0);
-    }
+    box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .bulk-actions-info {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
-    border-right: 1px solid var(--border);
-    padding-right: 20px;
+    flex-shrink: 0;
 }
 
 .bulk-actions-info span {
@@ -1566,19 +1551,20 @@ body.hide-right-panel .right-panel {
 
 .bulk-actions-buttons {
     display: flex;
-    gap: 8px;
+    gap: 12px;
+    align-items: center;
 }
 
 .bulk-action-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 14px;
-    background: var(--bg-hover);
+    padding: 10px 18px;
+    background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
@@ -1587,13 +1573,13 @@ body.hide-right-panel .right-panel {
 }
 
 .bulk-action-btn:hover {
-    background: var(--bg-active);
-    border-color: var(--accent);
+    background: var(--bg-hover);
+    border-color: var(--text-tertiary);
     transform: translateY(-1px);
 }
 
 .bulk-action-btn i {
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .bulk-action-danger {
@@ -1605,64 +1591,34 @@ body.hide-right-panel .right-panel {
     border-color: #ff4d4d;
 }
 
-/* Drag and Drop Styling */
-.drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius-lg);
-    padding: 40px;
-    text-align: center;
-    background: var(--bg-surface-2);
-    transition: var(--transition);
-    cursor: pointer;
-    margin-bottom: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
+/* Responsividade Agressiva para a Barra */
+@media (max-width: 1200px) {
+    .bulk-actions-bar {
+        left: 80px; /* Assume sidebar colapsada */
+        padding: 12px 16px;
+    }
 }
 
-.drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--accent);
-    background: var(--bg-hover);
-}
-
-.drop-zone i {
-    font-size: 48px;
-    color: var(--accent-bright);
-}
-
-.drop-zone h4 {
-    margin: 0;
-    font-size: 18px;
-    color: var(--text-primary);
-}
-
-.drop-zone p {
-    margin: 0;
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-.drop-zone .file-list {
-    margin-top: 15px;
-    width: 100%;
-    max-height: 200px;
-    overflow-y: auto;
-    display: none;
-}
-
-.drop-zone .file-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-    color: var(--text-primary);
-}
-
-.drop-zone .file-item i {
-    font-size: 16px;
+@media (max-width: 900px) {
+    .bulk-actions-bar {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+        right: 20px;
+        left: 20px;
+        bottom: calc(var(--player-height) + 10px);
+    }
+    .bulk-actions-buttons {
+        width: 100%;
+        justify-content: center;
+    }
+    .bulk-action-btn span {
+        display: none; /* Apenas ícones em ecrãs muito pequenos */
+    }
+    .bulk-action-btn {
+        padding: 10px;
+    }
 }
 
 .bulk-action-btn:hover {
