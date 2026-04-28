@@ -1048,19 +1048,41 @@ if(file_exists('db.php')) {
                     })
                     .then(data => {
                         if (data.ok) {
-                            // If playing this track, stop playback
+                            // If playing this track, stop playback and reset UI
                             if (playingTrackId == id) {
                                 audio.pause();
                                 audio.src = '';
                                 playingTrackId = null;
                                 currentTrackEl = null;
+                                
+                                // Reset Now Playing panel
                                 document.getElementById('npTitle').textContent = 'SoundRepo';
                                 document.getElementById('npArtist').textContent = 'Seleciona uma música';
                                 document.getElementById('npAlbum').textContent = '';
-                                document.getElementById('footerTitle').textContent = 'Nenhuma música selecionada';
-                                document.getElementById('footerArtist').textContent = '';
+                                
+                                // Reset footer
+                                document.getElementById('footerTitle').textContent = 'SoundRepo';
+                                document.getElementById('footerArtist').textContent = 'Pronto';
+                                
+                                // Reset album art
+                                npArt.style.backgroundImage = 'none';
+                                npArt.style.background = '';
+                                npArt.querySelector('.art-icon').style.display = '';
+                                npArtInitial.style.display = 'none';
+                                
+                                footerArt.style.backgroundImage = 'none';
+                                footerArt.style.background = '';
+                                footerArt.innerHTML = '<i class="ph ph-music-note"></i>';
+                                footerArt.classList.remove('has-track');
+                                
+                                // Reset play button
+                                updatePlayState(false);
+                                
+                                // Clear localStorage
                                 localStorage.removeItem('sr_state');
                             }
+                            
+                            // Remove row from list
                             ctxTargetRow.remove();
                             showToast('Música apagada: ' + title);
                         } else {
