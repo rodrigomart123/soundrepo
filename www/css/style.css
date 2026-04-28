@@ -1509,38 +1509,14 @@ body.hide-right-panel .right-panel {
 }
 
 /* === MULTI-SELECT & BULK ACTIONS === */
-.track-checkbox-header,
-.track-checkbox {
-    width: 16px;
-    height: 16px;
+.track-row {
     cursor: pointer;
-    accent-color: var(--accent);
-}
-
-.track-checkbox {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0;
-    transition: var(--transition);
-}
-
-.track-row:hover .track-checkbox,
-.track-row.selected .track-checkbox {
-    opacity: 1;
+    user-select: none;
 }
 
 .track-row.selected {
     background: var(--accent-dim) !important;
-}
-
-.track-row:hover .track-num {
-    opacity: 0;
-}
-
-.track-select-cell {
-    position: relative;
+    border-left: 3px solid var(--accent);
 }
 
 .bulk-actions-bar {

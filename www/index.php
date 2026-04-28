@@ -142,9 +142,7 @@ if(file_exists('db.php')) {
             <table>
                 <thead>
                     <tr>
-                        <th style="width:50px; text-align:center;">
-                            <input type="checkbox" id="selectAllTracks" class="track-checkbox-header">
-                        </th>
+                        <th style="width:50px; text-align:center;">#</th>
                         <th>T&iacute;tulo</th>
                         <th>Artista</th>
                         <th>&Aacute;lbum</th>
@@ -175,10 +173,9 @@ if(file_exists('db.php')) {
                                   data-album='$album'
                                   data-cover='$cover'
                                   data-genre='$genero'>";
-                        echo "  <td style='text-align:center; position:relative;' class='track-select-cell'>";
-                        echo "    <input type='checkbox' class='track-checkbox' data-id='$id'>";
+                        echo "  <td style='text-align:center; position:relative;'>";
                         echo "    <span class='track-num'>$counter</span>";
-                        echo "    <i class='ph-fill ph-play play-icon' onclick='playTrack(this.closest(\".track-row\"))'></i>";
+                        echo "    <i class='ph-fill ph-play play-icon'></i>";
                         echo "  </td>";
                         echo "  <td><span class='track-title'>$titulo</span></td>";
                         echo "  <td>$artista</td>";
@@ -331,10 +328,27 @@ if(file_exists('db.php')) {
         const title = el.dataset.title;
         const artist = el.dataset.artist;
         const album = el.dataset.album;
-        const cover = el.dataset.cover; // LER A CAPA AQUI
+        const cover = el.dataset.cover;
+
+        // Check if browser supports the audio format
+        const ext = src.split('.').pop().toLowerCase();
+        const canPlay = audio.canPlayType('audio/' + ext);
+        
+        if (!canPlay && ext === 'flac') {
+            // Try alternative MIME types for FLAC
+            const canPlayFlac = audio.canPlayType('audio/flac') || audio.canPlayType('audio/x-flac');
+            if (!canPlayFlac) {
+                showToast('Formato FLAC não suportado neste navegador. Tenta converter para MP3.');
+                return;
+            }
+        }
 
         audio.src = src;
-        audio.play().catch(() => {});
+        audio.load(); // Force reload
+        audio.play().catch((err) => {
+            console.error('Playback error:', err);
+            showToast('Erro ao reproduzir: ' + title);
+        });
         currentTrackEl = el;
         playingTrackId = el.dataset.id;
 
@@ -992,93 +1006,67 @@ if(file_exists('db.php')) {
     }
 
     // ========================
-    // MULTI-SELECT FEATURE
+    // MULTI-SELECT FEATURE (Visual Selection)
     // ========================
     const bulkActionsBar = document.getElementById('bulkActionsBar');
     const bulkSelectedCount = document.getElementById('bulkSelectedCount');
-    const selectAllCheckbox = document.getElementById('selectAllTracks');
     const bulkAddQueueBtn = document.getElementById('bulkAddQueue');
     const bulkDeleteBtn = document.getElementById('bulkDelete');
     const bulkCancelBtn = document.getElementById('bulkCancel');
 
-    // Handle checkbox clicks
+    // Handle track row clicks with Shift/Ctrl
     document.addEventListener('click', (e) => {
-        const checkbox = e.target.closest('.track-checkbox');
-        if (!checkbox) return;
+        const row = e.target.closest('.track-row');
+        if (!row) return;
         
-        e.stopPropagation();
-        const row = checkbox.closest('.track-row');
-        const trackId = checkbox.dataset.id;
+        // Ignore if clicking on play icon
+        if (e.target.closest('.play-icon')) {
+            playTrack(row);
+            return;
+        }
+        
+        const trackId = row.dataset.id;
         const allRows = getAllTracks();
         const currentIndex = allRows.indexOf(row);
         
         if (e.shiftKey && lastSelectedIndex !== -1) {
             // Shift-click: select range
+            e.preventDefault();
             const start = Math.min(lastSelectedIndex, currentIndex);
             const end = Math.max(lastSelectedIndex, currentIndex);
             
             for (let i = start; i <= end; i++) {
                 const r = allRows[i];
-                const cb = r.querySelector('.track-checkbox');
-                const id = cb.dataset.id;
-                
-                if (checkbox.checked) {
-                    selectedTracks.add(id);
-                    cb.checked = true;
-                    r.classList.add('selected');
-                } else {
-                    selectedTracks.delete(id);
-                    cb.checked = false;
-                    r.classList.remove('selected');
-                }
+                const id = r.dataset.id;
+                selectedTracks.add(id);
+                r.classList.add('selected');
             }
         } else if (e.ctrlKey || e.metaKey) {
             // Ctrl-click: toggle individual
-            if (checkbox.checked) {
-                selectedTracks.add(trackId);
-                row.classList.add('selected');
-            } else {
+            e.preventDefault();
+            if (selectedTracks.has(trackId)) {
                 selectedTracks.delete(trackId);
                 row.classList.remove('selected');
+            } else {
+                selectedTracks.add(trackId);
+                row.classList.add('selected');
             }
         } else {
-            // Normal click: toggle individual
-            if (checkbox.checked) {
-                selectedTracks.add(trackId);
-                row.classList.add('selected');
-            } else {
-                selectedTracks.delete(trackId);
-                row.classList.remove('selected');
+            // Normal click: play track (double-click) or select single
+            if (e.detail === 2) {
+                // Double-click: play
+                playTrack(row);
+                return;
             }
+            // Single click: clear selection and select this one
+            clearSelection();
+            selectedTracks.add(trackId);
+            row.classList.add('selected');
         }
         
         lastSelectedIndex = currentIndex;
         updateBulkActions();
     });
-
-    // Select all checkbox
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', () => {
-            const allRows = getAllTracks();
-            selectedTracks.clear();
-            
-            allRows.forEach(row => {
-                const cb = row.querySelector('.track-checkbox');
-                const id = cb.dataset.id;
-                
-                if (selectAllCheckbox.checked) {
-                    cb.checked = true;
-                    row.classList.add('selected');
-                    selectedTracks.add(id);
-                } else {
-                    cb.checked = false;
-                    row.classList.remove('selected');
-                }
-            });
-            
-            updateBulkActions();
-        });
-    }
 
     function updateBulkActions() {
         const count = selectedTracks.size;
@@ -1088,18 +1076,14 @@ if(file_exists('db.php')) {
             bulkSelectedCount.textContent = count;
         } else {
             bulkActionsBar.style.display = 'none';
-            if (selectAllCheckbox) selectAllCheckbox.checked = false;
         }
     }
 
     function clearSelection() {
         selectedTracks.clear();
         getAllTracks().forEach(row => {
-            const cb = row.querySelector('.track-checkbox');
-            if (cb) cb.checked = false;
             row.classList.remove('selected');
         });
-        if (selectAllCheckbox) selectAllCheckbox.checked = false;
         updateBulkActions();
     }
 

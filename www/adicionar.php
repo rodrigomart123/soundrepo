@@ -259,8 +259,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                     $trackArtist = 'Desconhecido';
                     $trackAlbum = 'Desconhecido';
 
+                    // Remove track numbers FIRST (e.g., "01 - C418 - Key" -> "C418 - Key")
+                    $cleaned = preg_replace('/^\d{1,3}[\s.\-]+/', '', $baseName);
+                    
                     // Clean common tags: (Official Video), [Lyrics], etc.
-                    $cleaned = preg_replace('/\s*[\(\[][^\)\]]*[\)\]]\s*/', ' ', $baseName);
+                    $cleaned = preg_replace('/\s*[\(\[][^\)\]]*[\)\]]\s*/', ' ', $cleaned);
                     $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
 
                     // ALWAYS try to parse "Artist - Title" pattern
@@ -278,10 +281,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
                             $trackTitle = $cleaned;
                         }
                     }
-
-                    // Remove track numbers from title (e.g., "01 Song Name" or "01. Song Name")
-                    $trackTitle = preg_replace('/^\d{1,3}[.\-\s]+/', '', $trackTitle);
-                    $trackTitle = trim($trackTitle);
 
                     if ($detectMeta) {
                         // Detect album from folder name (webkitdirectory or parent folder)
