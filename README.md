@@ -34,8 +34,8 @@ Ou importe manualmente através do phpMyAdmin/MySQL Workbench.
 Se as suas credenciais MySQL não forem as padrão (root sem senha), edite o ficheiro `www/db.php`:
 
 ```php
-$user = 'root';     // Seu utilizador MySQL
-$pass = '';         // Sua senha MySQL
+$user = 'root';     // O teu utilizador MySQL
+$pass = '';         // A tua palavra-passe MySQL
 ```
 
 ### 3. Executar a Aplicação
