@@ -45,6 +45,7 @@
     transition: var(--transition);
     box-sizing: border-box;
     width: 100%;
+    max-width: none;
 }
 
 .search-bar-container:focus-within {

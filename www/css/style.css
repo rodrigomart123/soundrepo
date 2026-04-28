@@ -1022,18 +1022,7 @@ body.hide-right-panel .right-panel {
 }
 
 /* === SEARCH OVERLAY === */
-.search-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 1000;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 80px;
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.15s ease;
-}
+
 .search-bar-container {
     width: 100%;
     max-width: 560px;
