@@ -842,6 +842,7 @@ if(file_exists('db.php')) {
     function closeSearch() {
         searchOverlay.style.display = 'none';
         searchInput.value = '';
+        searchResults.innerHTML = '';
         
         // Clear persistent search bar when closing search overlay
         currentSearchQuery = '';
@@ -1084,13 +1085,6 @@ if(file_exists('db.php')) {
             searchDebounceTimer = setTimeout(() => {
                 performSearch(query);
             }, 400);
-            
-            // Update persistent search bar
-            currentSearchQuery = query.toLowerCase();
-            const sp = document.getElementById('searchPersistent');
-            if (sp) sp.value = searchInput.value;
-            updateSearchClearBtn();
-            applyAllFilters();
         });
     }
 
