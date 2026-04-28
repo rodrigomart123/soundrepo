@@ -79,15 +79,8 @@
         $sql .= " WHERE " . implode(" AND ", $conditions);
     }
     
-    // Check if we are viewing a specific artist's discography (no specific album chosen)
-    $isArtistView = ($queryArtist && !$queryAlbum);
-
-    if ($isArtistView) {
-        // Group by album naturally in SQL
-        $sql .= " ORDER BY a.Title ASC, m.Title ASC";
-    } else {
-        $sql .= " ORDER BY m.MusicId DESC";
-    }
+    // Group logically by Artist -> Album
+    $sql .= " ORDER BY art.Name ASC, a.Title ASC, m.Title ASC";
 
     try {
         $stmt = $pdo->prepare($sql);
@@ -95,18 +88,25 @@
         $tracks = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $hasMusics = count($tracks) > 0;
         
-        // Prepare grouped structure if needed
+        // Prepare grouped structure for everything
         $groupedTracks = [];
-        if ($isArtistView && $hasMusics) {
+        if ($hasMusics) {
             foreach ($tracks as $track) {
                 $albumName = !empty($track['AlbumName']) ? $track['AlbumName'] : 'Outros / Singles';
-                if (!isset($groupedTracks[$albumName])) {
-                    $groupedTracks[$albumName] = [
+                $artistName = !empty($track['ArtistName']) ? $track['ArtistName'] : 'Artista Desconhecido';
+                
+                // Unique key to separate same-named albums from different artists
+                $groupKey = $artistName . " | " . $albumName;
+
+                if (!isset($groupedTracks[$groupKey])) {
+                    $groupedTracks[$groupKey] = [
+                        'AlbumName' => $albumName,
+                        'ArtistName' => $artistName,
                         'CoverPath' => $track['CoverPath'],
                         'Tracks' => []
                     ];
                 }
-                $groupedTracks[$albumName]['Tracks'][] = $track;
+                $groupedTracks[$groupKey]['Tracks'][] = $track;
             }
         }
 
@@ -174,32 +174,25 @@
         <!-- Track List -->
         <div class="track-list-container" style="padding: 24px 32px;">
             <?php if($hasMusics): ?>
-                <?php if ($isArtistView): ?>
-                    <!-- ARTIST TREE VIEW (GROUP BY ALBUM) -->
-                    <?php foreach($groupedTracks as $albumName => $albumData): 
-                        $coverStyle = !empty($albumData['CoverPath']) ? "background-image: url('".str_replace('\\', '/', htmlspecialchars($albumData['CoverPath']))."');" : "";
-                    ?>
-                        <div class="album-group">
-                            <div class="album-group-header">
-                                <div class="album-group-cover" style="<?= $coverStyle ?>">
-                                    <?php if(empty($albumData['CoverPath'])): ?>
-                                        <i class="ph ph-vinyl-record"></i>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="album-group-info">
-                                    <h2><?= htmlspecialchars($albumName) ?></h2>
-                                    <p><?= count($albumData['Tracks']) ?> música(s)</p>
-                                </div>
+                <!-- UNIVERSAL TREE VIEW (GROUP BY ALBUM) -->
+                <?php foreach($groupedTracks as $groupKey => $albumData): 
+                    $coverStyle = !empty($albumData['CoverPath']) ? "background-image: url('".str_replace('\\', '/', htmlspecialchars($albumData['CoverPath']))."');" : "";
+                ?>
+                    <div class="album-group">
+                        <div class="album-group-header">
+                            <div class="album-group-cover" style="<?= $coverStyle ?>">
+                                <?php if(empty($albumData['CoverPath'])): ?>
+                                    <i class="ph ph-vinyl-record"></i>
+                                <?php endif; ?>
                             </div>
-                            <?= renderTrackTable($albumData['Tracks']) ?>
+                            <div class="album-group-info">
+                                <h2><?= htmlspecialchars($albumData['AlbumName']) ?></h2>
+                                <p><?= htmlspecialchars($albumData['ArtistName']) ?> • <?= count($albumData['Tracks']) ?> música(s)</p>
+                            </div>
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <!-- STANDARD FLAT LIST -->
-                    <div style="background: var(--bg-surface); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-light);">
-                        <?= renderTrackTable($tracks) ?>
+                        <?= renderTrackTable($albumData['Tracks']) ?>
                     </div>
-                <?php endif; ?>
+                <?php endforeach; ?>
             <?php else: ?>
                 <div class="empty-state">
                     <i class="ph ph-music-notes"></i>
