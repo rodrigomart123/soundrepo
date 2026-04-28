@@ -200,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
             // Helper: get or create artist
             $getArtistId = function($name) use ($pdo, &$artistCache) {
-                $key = mb_strtolower($name);
+                $key = strtolower($name);
                 if (isset($artistCache[$key])) return $artistCache[$key];
                 $stmt = $pdo->prepare("SELECT ArtistId FROM Artists WHERE Name = ?");
                 $stmt->execute([$name]);
@@ -218,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mo
 
             // Helper: get or create album
             $getAlbumId = function($title, $artistId) use ($pdo, &$albumCache) {
-                $key = mb_strtolower($title) . '_' . $artistId;
+                $key = strtolower($title) . '_' . $artistId;
                 if (isset($albumCache[$key])) return $albumCache[$key];
                 $stmt = $pdo->prepare("SELECT AlbumId FROM Albums WHERE Title = ? AND ArtistId = ?");
                 $stmt->execute([$title, $artistId]);
