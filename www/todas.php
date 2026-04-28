@@ -58,7 +58,7 @@
     }
 
     // Build SQL with filters
-    $sql = "SELECT m.MusicId, m.Title, m.FilePath, m.Duration, m.Genre, a.Title as AlbumName, a.CoverPath, art.Name as ArtistName
+    $sql = "SELECT m.MusicId, m.Title, m.FilePath, m.DurationSeconds, m.Genre, a.Title as AlbumName, a.CoverPath, art.Name as ArtistName
             FROM Musics m
             LEFT JOIN Albums a ON m.AlbumId = a.AlbumId
             LEFT JOIN Artists art ON a.ArtistId = art.ArtistId";

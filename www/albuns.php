@@ -45,7 +45,7 @@
     <?php
     require 'db.php';
 
-    $sql = "SELECT a.AlbumId, a.Title, a.CoverPath, a.Year, art.Name as ArtistName,
+    $sql = "SELECT a.AlbumId, a.Title, a.CoverPath, art.Name as ArtistName,
             COUNT(m.MusicId) as TrackCount
             FROM Albums a
             LEFT JOIN Artists art ON a.ArtistId = art.ArtistId
@@ -73,7 +73,6 @@
             <div class="card-grid" id="albumGrid">
                 <?php foreach($albums as $album): 
                     $coverStyle = !empty($album['CoverPath']) ? "background-image: url('".htmlspecialchars($album['CoverPath'])."');" : "";
-                    $year = $album['Year'] ? $album['Year'] : 'Desconhecido';
                     $artistName = $album['ArtistName'] ?? 'Desconhecido';
                     $subtitle = $artistName . " • " . $album['TrackCount'] . " música(s)";
                 ?>
