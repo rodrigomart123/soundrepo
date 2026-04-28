@@ -1530,14 +1530,18 @@ body.hide-right-panel .right-panel {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
     z-index: 90;
     box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease;
 }
 
 .bulk-actions-info {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
 }
 
 .bulk-actions-info span {
@@ -1546,23 +1550,37 @@ body.hide-right-panel .right-panel {
 
 .bulk-actions-buttons {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .bulk-action-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
+    padding: 8px 14px;
     background: var(--bg-hover);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;
     transition: var(--transition);
+    white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+    .bulk-actions-bar {
+        padding: 10px 16px;
+    }
+    .bulk-action-btn span {
+        display: none; /* Esconde o texto, deixa só o ícone em telas pequenas */
+    }
+    .bulk-action-btn {
+        padding: 8px 10px;
+    }
 }
 
 .bulk-action-btn:hover {

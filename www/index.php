@@ -286,13 +286,13 @@ if(file_exists('db.php')) {
         </div>
         <div class="bulk-actions-buttons">
             <button class="bulk-action-btn" id="bulkAddQueue">
-                <i class="ph ph-queue"></i> Adicionar à Fila
+                <i class="ph ph-queue"></i> <span>Adicionar à Fila</span>
             </button>
             <button class="bulk-action-btn bulk-action-danger" id="bulkDelete">
-                <i class="ph ph-trash"></i> Apagar
+                <i class="ph ph-trash"></i> <span>Apagar</span>
             </button>
             <button class="bulk-action-btn" id="bulkCancel">
-                <i class="ph ph-x"></i> Cancelar
+                <i class="ph ph-x"></i> <span>Cancelar</span>
             </button>
         </div>
     </div>
