@@ -100,16 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
                  JOIN Albums a ON m.AlbumId = a.AlbumId
                  JOIN Artists art ON a.ArtistId = art.ArtistId
                  WHERE m.Title LIKE ? OR art.Name LIKE ? OR a.Title LIKE ?
-                 ORDER BY 
-                    CASE 
-                        WHEN m.Title LIKE ? THEN 1
-                        WHEN art.Name LIKE ? THEN 2
-                        ELSE 3
-                    END,
-                    m.MusicId DESC
+                 ORDER BY m.MusicId DESC
                  LIMIT ?"
             );
-            $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $limit]);
+            $stmt->execute([$searchTerm, $searchTerm, $searchTerm, $limit]);
         }
         
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);

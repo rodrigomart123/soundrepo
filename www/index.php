@@ -1109,10 +1109,14 @@ if(file_exists('db.php')) {
         }
     });
 
-    // ESC to close search overlay
+    // ESC to close search overlay or clear filter
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && searchOverlay && searchOverlay.style.display !== 'none') {
-            closeSearch();
+        if (e.key === 'Escape') {
+            if (searchOverlay && searchOverlay.style.display !== 'none') {
+                closeSearch();
+            } else if (currentSearchQuery !== '') {
+                clearSearch();
+            }
         }
         // Ctrl+F opens search overlay
         if ((e.ctrlKey || e.metaKey) && e.key === 'f') {

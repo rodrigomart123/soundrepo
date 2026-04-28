@@ -5,8 +5,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.92);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.95);
     z-index: 1000;
     display: flex;
     align-items: flex-start;
@@ -33,7 +32,9 @@
 }
 
 .search-bar-container {
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 10;
     display: flex;
     align-items: center;
     background: var(--bg-surface);
@@ -42,6 +43,8 @@
     padding: 16px;
     margin-bottom: 24px;
     transition: var(--transition);
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .search-bar-container:focus-within {
@@ -90,27 +93,10 @@
 }
 
 .search-results {
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
-    padding-right: 4px;
+    /* Removed max-height and overflow to let the parent overlay handle scrolling */
 }
 
-.search-results::-webkit-scrollbar {
-    width: 8px;
-}
-
-.search-results::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.search-results::-webkit-scrollbar-thumb {
-    background: var(--border-light);
-    border-radius: 4px;
-}
-
-.search-results::-webkit-scrollbar-thumb:hover {
-    background: var(--border);
-}
+/* Removed max-height and overflow to let the parent overlay handle scrolling */
 
 .search-section {
     margin-bottom: 32px;
@@ -137,6 +123,8 @@
     gap: 16px;
     cursor: pointer;
     transition: var(--transition);
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .search-card:hover {
@@ -256,7 +244,7 @@
     }
     
     .search-results {
-        max-height: calc(100vh - 140px);
+        /* Removed max-height */
     }
     
     .search-card {
