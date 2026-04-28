@@ -1,0 +1,21 @@
+# Cache and logs
+webcache/
+debug.log
+
+# PHP Desktop binaries (keep only source code)
+*.dll
+*.pak
+*.bin
+*.dat
+*.json.bak
+
+# User data
+www/covers/*
+!www/covers/.gitkeep
+www/musicas/*
+!www/musicas/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
