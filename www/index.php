@@ -265,10 +265,16 @@ if(file_exists('db.php')) {
 
     <!-- SEARCH OVERLAY -->
     <div class="search-overlay" id="searchOverlay" style="display:none;">
-        <div class="search-bar-container">
-            <i class="ph ph-magnifying-glass search-bar-icon"></i>
-            <input type="text" id="searchInput" class="search-bar-input" placeholder="Pesquisar m&uacute;sicas, artistas, &aacute;lbuns..." autocomplete="off">
-            <button class="search-bar-close" id="searchClose"><i class="ph ph-x"></i></button>
+        <div class="search-container">
+            <div class="search-bar-container">
+                <i class="ph ph-magnifying-glass search-bar-icon"></i>
+                <input type="text" id="searchInput" class="search-bar-input" placeholder="Pesquisar músicas, artistas, álbuns..." autocomplete="off">
+                <button class="search-bar-close" id="searchClose"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <div class="search-results" id="searchResults">
+                <!-- Results will be injected here -->
+            </div>
         </div>
     </div>
 
@@ -815,27 +821,25 @@ if(file_exists('db.php')) {
     loadTrackDurations();
 
     // ========================
-    // SEARCH FEATURE (Persistent)
+    // SEARCH FEATURE (Advanced)
     // ========================
     const searchOverlay = document.getElementById('searchOverlay');
     const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
     const searchClose = document.getElementById('searchClose');
     const navSearch = document.getElementById('navSearch');
     let currentSearchQuery = '';
+    let searchDebounceTimer = null;
 
     function openSearch() {
         searchOverlay.style.display = '';
-        searchInput.value = currentSearchQuery;
+        searchInput.value = '';
         searchInput.focus();
+        loadSearchSuggestions();
     }
 
     function closeSearch() {
         searchOverlay.style.display = 'none';
-        currentSearchQuery = searchInput.value.trim().toLowerCase();
-        const sp = document.getElementById('searchPersistent');
-        if (sp) sp.value = currentSearchQuery;
-        updateSearchClearBtn();
-        applyAllFilters();
     }
 
     function clearSearch() {
@@ -852,6 +856,200 @@ if(file_exists('db.php')) {
         if (btn) btn.style.display = currentSearchQuery ? '' : 'none';
     }
 
+    // Load suggestions when search opens (no query)
+    function loadSearchSuggestions() {
+        const suggestions = [];
+        
+        // 1. Currently playing track
+        if (currentTrackEl) {
+            suggestions.push({
+                title: 'A Tocar Agora',
+                items: [{
+                    id: currentTrackEl.dataset.id,
+                    title: currentTrackEl.dataset.title,
+                    artist: currentTrackEl.dataset.artist,
+                    album: currentTrackEl.dataset.album,
+                    cover: currentTrackEl.dataset.cover,
+                    src: currentTrackEl.dataset.src,
+                    badge: 'A TOCAR'
+                }]
+            });
+        }
+        
+        // 2. Recent tracks from play queue
+        if (playQueue.length > 0) {
+            const recentTracks = playQueue.slice(0, 5).map(item => ({
+                id: item.id,
+                title: item.title,
+                artist: item.artist,
+                album: item.album,
+                cover: item.cover,
+                src: item.src,
+                badge: 'FILA'
+            }));
+            suggestions.push({
+                title: 'Na Fila de Reprodução',
+                items: recentTracks
+            });
+        }
+        
+        // 3. Recent tracks from library
+        fetch('api.php?action=search&limit=8')
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok && data.results.length > 0) {
+                    const recentLibrary = data.results.map(track => ({
+                        id: track.MusicId,
+                        title: track.Title,
+                        artist: track.ArtistName,
+                        album: track.AlbumName,
+                        cover: track.CoverPath,
+                        src: track.FilePath,
+                        badge: 'RECENTE'
+                    }));
+                    suggestions.push({
+                        title: 'Adicionadas Recentemente',
+                        items: recentLibrary
+                    });
+                }
+                renderSearchSuggestions(suggestions);
+            })
+            .catch(() => {
+                renderSearchSuggestions(suggestions);
+            });
+    }
+
+    // Render suggestions or search results
+    function renderSearchSuggestions(sections) {
+        if (!searchResults) return;
+        
+        if (sections.length === 0) {
+            searchResults.innerHTML = `
+                <div class="search-empty">
+                    <i class="ph ph-music-notes-simple"></i>
+                    <p>Nenhuma música encontrada</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        sections.forEach(section => {
+            if (section.items.length === 0) return;
+            
+            html += `<div class="search-section">`;
+            html += `<div class="search-section-title">${escapeHtml(section.title)}</div>`;
+            
+            section.items.forEach(item => {
+                const coverStyle = item.cover ? `background-image: url('${escapeAttr(item.cover)}')` : '';
+                const coverContent = item.cover 
+                    ? '' 
+                    : `<i class="ph ph-music-note"></i>`;
+                
+                html += `
+                    <div class="search-card" data-track-id="${item.id}" data-track-src="${escapeAttr(item.src)}" data-track-title="${escapeAttr(item.title)}" data-track-artist="${escapeAttr(item.artist)}" data-track-album="${escapeAttr(item.album)}" data-track-cover="${escapeAttr(item.cover)}">
+                        <div class="search-card-art" style="${coverStyle}">
+                            ${coverContent}
+                        </div>
+                        <div class="search-card-info">
+                            <div class="search-card-title">${escapeHtml(item.title)}</div>
+                            <div class="search-card-subtitle">${escapeHtml(item.artist)} • ${escapeHtml(item.album)}</div>
+                        </div>
+                        ${item.badge ? `<div class="search-card-badge">${item.badge}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+        });
+        
+        searchResults.innerHTML = html;
+    }
+
+    // Perform search via API
+    function performSearch(query) {
+        if (!query || query.length < 1) {
+            loadSearchSuggestions();
+            return;
+        }
+        
+        fetch(`api.php?action=search&q=${encodeURIComponent(query)}&limit=20`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    const results = data.results.map(track => ({
+                        id: track.MusicId,
+                        title: track.Title,
+                        artist: track.ArtistName,
+                        album: track.AlbumName,
+                        cover: track.CoverPath,
+                        src: track.FilePath
+                    }));
+                    
+                    if (results.length > 0) {
+                        renderSearchSuggestions([{
+                            title: `Resultados para "${query}"`,
+                            items: results
+                        }]);
+                    } else {
+                        searchResults.innerHTML = `
+                            <div class="search-empty">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <p>Nenhum resultado para "${escapeHtml(query)}"</p>
+                            </div>
+                        `;
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Search error:', err);
+                searchResults.innerHTML = `
+                    <div class="search-empty">
+                        <i class="ph ph-warning"></i>
+                        <p>Erro ao pesquisar</p>
+                    </div>
+                `;
+            });
+    }
+
+    // Click handler for search cards
+    searchOverlay.addEventListener('click', (e) => {
+        const card = e.target.closest('.search-card');
+        if (card) {
+            const trackData = {
+                id: card.dataset.trackId,
+                src: card.dataset.trackSrc,
+                title: card.dataset.trackTitle,
+                artist: card.dataset.trackArtist,
+                album: card.dataset.trackAlbum,
+                cover: card.dataset.trackCover
+            };
+            
+            // Find the actual track element in the DOM or create a virtual one
+            const existingTrack = document.querySelector(`.track-row[data-id="${trackData.id}"]`);
+            if (existingTrack) {
+                playTrack(existingTrack);
+            } else {
+                // Create virtual track element for playback
+                const virtualTrack = document.createElement('div');
+                virtualTrack.dataset.id = trackData.id;
+                virtualTrack.dataset.src = trackData.src;
+                virtualTrack.dataset.title = trackData.title;
+                virtualTrack.dataset.artist = trackData.artist;
+                virtualTrack.dataset.album = trackData.album;
+                virtualTrack.dataset.cover = trackData.cover;
+                playTrack(virtualTrack);
+            }
+            
+            closeSearch();
+            return;
+        }
+        
+        if (e.target === searchOverlay) {
+            closeSearch();
+        }
+    });
+
     if (navSearch) {
         navSearch.addEventListener('click', (e) => {
             e.preventDefault();
@@ -861,15 +1059,19 @@ if(file_exists('db.php')) {
     if (searchClose) {
         searchClose.addEventListener('click', closeSearch);
     }
-    if (searchOverlay) {
-        searchOverlay.addEventListener('click', (e) => {
-            if (e.target === searchOverlay) closeSearch();
-        });
-    }
 
     if (searchInput) {
         searchInput.addEventListener('input', () => {
-            currentSearchQuery = searchInput.value.trim().toLowerCase();
+            const query = searchInput.value.trim();
+            
+            // Debounce search
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                performSearch(query);
+            }, 300);
+            
+            // Update persistent search bar
+            currentSearchQuery = query.toLowerCase();
             const sp = document.getElementById('searchPersistent');
             if (sp) sp.value = searchInput.value;
             updateSearchClearBtn();
