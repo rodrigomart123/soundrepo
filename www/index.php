@@ -1031,43 +1031,49 @@ if(file_exists('db.php')) {
             if (!ctxTargetRow) return;
             const id = ctxTargetRow.dataset.id;
             const title = ctxTargetRow.dataset.title;
-            if (!confirm('Apagar "' + title + '"?\nEsta ação é irreversível.')) return;
-
-            fetch('api.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=delete&id=' + encodeURIComponent(id)
-            })
-            .then(r => {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
-            .then(data => {
-                if (data.ok) {
-                    // If playing this track, stop playback
-                    if (playingTrackId == id) {
-                        audio.pause();
-                        audio.src = '';
-                        playingTrackId = null;
-                        currentTrackEl = null;
-                        document.getElementById('npTitle').textContent = 'SoundRepo';
-                        document.getElementById('npArtist').textContent = 'Seleciona uma música';
-                        document.getElementById('npAlbum').textContent = '';
-                        document.getElementById('footerTitle').textContent = 'Nenhuma música selecionada';
-                        document.getElementById('footerArtist').textContent = '';
-                        localStorage.removeItem('sr_state');
-                    }
-                    ctxTargetRow.remove();
-                    showToast('Música apagada: ' + title);
-                } else {
-                    console.error('Delete failed:', data.error);
-                    showToast('Erro ao apagar: ' + (data.error || 'Erro desconhecido'));
+            
+            showConfirm(
+                'Apagar Música',
+                'Tens a certeza que queres apagar "' + title + '"? Esta ação é irreversível.',
+                () => {
+                    // User confirmed
+                    fetch('api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'action=delete&id=' + encodeURIComponent(id)
+                    })
+                    .then(r => {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(data => {
+                        if (data.ok) {
+                            // If playing this track, stop playback
+                            if (playingTrackId == id) {
+                                audio.pause();
+                                audio.src = '';
+                                playingTrackId = null;
+                                currentTrackEl = null;
+                                document.getElementById('npTitle').textContent = 'SoundRepo';
+                                document.getElementById('npArtist').textContent = 'Seleciona uma música';
+                                document.getElementById('npAlbum').textContent = '';
+                                document.getElementById('footerTitle').textContent = 'Nenhuma música selecionada';
+                                document.getElementById('footerArtist').textContent = '';
+                                localStorage.removeItem('sr_state');
+                            }
+                            ctxTargetRow.remove();
+                            showToast('Música apagada: ' + title);
+                        } else {
+                            console.error('Delete failed:', data.error);
+                            showToast('Erro ao apagar: ' + (data.error || 'Erro desconhecido'));
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Delete error:', err);
+                        showToast('Erro de rede ao apagar');
+                    });
                 }
-            })
-            .catch(err => {
-                console.error('Delete error:', err);
-                showToast('Erro de rede ao apagar');
-            });
+            );
         });
     }
 
@@ -1307,6 +1313,54 @@ if(file_exists('db.php')) {
     });
     audio.addEventListener('pause', savePlayerState);
     audio.addEventListener('play', savePlayerState);
+
+    // ========================
+    // CUSTOM CONFIRM DIALOG
+    // ========================
+    function showConfirm(title, message, onConfirm) {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-modal-overlay';
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'confirm-modal';
+        
+        modal.innerHTML = `
+            <div class="confirm-modal-header">
+                <i class="ph-fill ph-warning-circle confirm-modal-icon"></i>
+                <div class="confirm-modal-title">${escapeHtml(title)}</div>
+            </div>
+            <div class="confirm-modal-body">${escapeHtml(message)}</div>
+            <div class="confirm-modal-actions">
+                <button class="confirm-btn confirm-btn-cancel">Cancelar</button>
+                <button class="confirm-btn confirm-btn-confirm">Apagar</button>
+            </div>
+        `;
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        const btnCancel = modal.querySelector('.confirm-btn-cancel');
+        const btnConfirm = modal.querySelector('.confirm-btn-confirm');
+        
+        function close() {
+            overlay.remove();
+        }
+        
+        btnCancel.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
+        
+        btnConfirm.addEventListener('click', () => {
+            close();
+            if (onConfirm) onConfirm();
+        });
+        
+        // Focus confirm button
+        setTimeout(() => btnConfirm.focus(), 100);
+    }
 
     // Restore on startup
     restorePlayerState();
